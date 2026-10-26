@@ -17,7 +17,7 @@ import {
 } from "../lib/questData";
 import { questNames } from "../lib/analysis";
 import { useApp } from "./store";
-import { QuestLevel } from "./ui";
+import { PhaseIcon, QuestLevel } from "./ui";
 
 export function QuestCard({
   quest,
@@ -87,6 +87,11 @@ export function QuestCard({
             className={`btn small${action.primary ? " primary" : ""}`}
             onClick={() => onAdd(action.phases)}
           >
+            <span className="phase-icons">
+              {action.phases.map((phase) => (
+                <PhaseIcon key={phase} phase={phase} />
+              ))}
+            </span>
             {action.label}
           </button>
         ))}

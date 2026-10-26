@@ -261,8 +261,8 @@ describe("reading a guide in order", () => {
     const orc: Profile = { races: [2], professions: [] };
     expect(texts(guide, orc)).toMatchObject({
       1: [`Needs "Cutting Teeth" turned in first, which happens later in "Chapter 1"`],
-      5: ["Needs level 10, but this chapter only goes up to 5", "Still in the quest log at the end of the guide"],
-      6: ["Only for Undead", "Still in the quest log at the end of the guide"],
+      5: ["Needs level 10, but this chapter only goes up to 5", 'Never turned in: click a later step, then add it from "Picked up, not turned in yet"'],
+      6: ["Only for Undead", 'Never turned in: click a later step, then add it from "Picked up, not turned in yet"'],
     });
   });
 

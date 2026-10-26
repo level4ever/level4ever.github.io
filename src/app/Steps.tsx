@@ -1,5 +1,7 @@
 // The shown chapter's steps. Click a step to select it (new steps go after
-// it); drag steps to reorder them, or onto a chapter to move them there.
+// it, and its everyday settings show on its row); its ✎ button opens all its
+// settings in the side panel. Drag steps to reorder them, or onto a chapter
+// to move them there.
 
 import { useEffect, useRef, useState } from "react";
 import type { Warning } from "../lib/analysis";
@@ -13,13 +15,16 @@ import {
   moveItem,
   renameChapter,
   setChapterLevel,
+  setOptional,
   unbatchItem,
+  updateItem,
 } from "../lib/editor";
+import type { Phase } from "../lib/addQuest";
 import type { Guide, GuideItem, NoteKind, QuestItem } from "../lib/guide";
-import { className, type Profile, type QuestIndex } from "../lib/questData";
+import { className, objectiveText, type Profile, type QuestIndex } from "../lib/questData";
 import { DRAG_TYPE, foundQuests, isFound } from "./Chapters";
 import { cursorPosition, useApp } from "./store";
-import { SeverityIcon, worst } from "./ui";
+import { PHASE_LABELS, PhaseIcon, SeverityIcon, worst } from "./ui";
 
 export const NOTE_KIND_LABELS: Record<NoteKind | "note", string> = {
   note: "Note",
@@ -361,10 +366,22 @@ function StepRow({
           >
             ⛓
           </button>
+          <button
+            className="icon-btn"
+            title="Edit step: every setting, in the side panel"
+            aria-label="Edit step"
+            onClick={() => {
+              app.select(item.id);
+              onOpen();
+            }}
+          >
+            ✎
+          </button>
           <button className="icon-btn" title="Delete step" onClick={() => app.edit((g) => deleteItem(g, item.id))}>
             ✕
           </button>
         </div>
+        {selected && item.type === "quest" && <QuickSettings guide={guide} item={item} index={index} onOpen={onOpen} />}
       </li>
       {marker && <InsertMarker />}
     </>
@@ -383,10 +400,10 @@ function QuestSub({ guide, item, index }: { guide: Guide; item: QuestItem; index
   );
 }
 
-// Pick up / do objectives / turn in.
+// Pick up / objectives / turn in.
 export function Ticks({ item }: { item: QuestItem }) {
   const app = useApp.getState();
-  const toggle = (key: "pickup" | "objectives" | "turnin") =>
+  const toggle = (key: Phase) =>
     app.edit((g) => {
       const step = g.items.find((i) => i.id === item.id) as QuestItem;
       if (step[key]) delete step[key];
@@ -394,15 +411,70 @@ export function Ticks({ item }: { item: QuestItem }) {
     });
   return (
     <span className="ticks" role="group" aria-label="What this step does">
-      <button className="tick" aria-pressed={!!item.pickup} title="Pick up" onClick={() => toggle("pickup")}>
-        P
-      </button>
-      <button className="tick" aria-pressed={!!item.objectives} title="Do the objectives" onClick={() => toggle("objectives")}>
-        O
-      </button>
-      <button className="tick" aria-pressed={!!item.turnin} title="Turn in" onClick={() => toggle("turnin")}>
-        T
-      </button>
+      {(["pickup", "objectives", "turnin"] as const).map((phase) => (
+        <button
+          key={phase}
+          className="tick"
+          aria-pressed={!!item[phase]}
+          aria-label={PHASE_LABELS[phase]}
+          title={`${PHASE_LABELS[phase]}: ${item[phase] ? "on" : "off"} for this step`}
+          onClick={() => toggle(phase)}
+        >
+          <PhaseIcon phase={phase} />
+        </button>
+      ))}
     </span>
+  );
+}
+
+// The selected quest step's everyday settings, on its row; the rest are in
+// the side panel.
+function QuickSettings({ guide, item, index, onOpen }: { guide: Guide; item: QuestItem; index: QuestIndex | undefined; onOpen: () => void }) {
+  const app = useApp.getState();
+  const objectives = index?.byId.get(item.quest)?.objectives ?? [];
+  const all = objectives.map((_, i) => i + 1);
+  const chosen = Array.isArray(item.objectives) ? item.objectives : all;
+  const toggleObjective = (n: number) => {
+    const next = chosen.includes(n) ? chosen.filter((o) => o !== n) : [...chosen, n].sort((a, b) => a - b);
+    if (next.length === 0) return; // a step that does objectives does at least one
+    app.edit((g) => updateItem(g, item.id, { objectives: next.length === all.length ? true : next }));
+  };
+  return (
+    <div className="step-quick" onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
+      {item.objectives && objectives.length > 1 && (
+        <span className="ticks" role="group" aria-label="Objectives this step does">
+          {objectives.map((objective, i) => (
+            <button
+              key={i}
+              className="tick"
+              aria-pressed={chosen.includes(i + 1)}
+              title={objectiveText(index!, objective)}
+              onClick={() => toggleObjective(i + 1)}
+            >
+              {i + 1}
+            </button>
+          ))}
+        </span>
+      )}
+      <label className="row" title="Worked on in the background until its next step">
+        <input
+          type="checkbox"
+          checked={!!item.ongoing}
+          onChange={(e) => app.edit((g) => updateItem(g, item.id, { ongoing: e.target.checked || undefined }))}
+        />
+        Ongoing
+      </label>
+      <label className="row" title="Fine to skip, e.g. an escort. Applies to every step for this quest.">
+        <input
+          type="checkbox"
+          checked={!!guide.optionalQuests[item.quest]}
+          onChange={(e) => app.edit((g) => setOptional(g, item.quest, e.target.checked))}
+        />
+        Optional
+      </label>
+      <button className="btn ghost small" onClick={onOpen}>
+        More settings →
+      </button>
+    </div>
   );
 }

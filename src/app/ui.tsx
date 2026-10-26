@@ -1,6 +1,7 @@
 // Small building blocks shared by the app's screens.
 
 import { useEffect, useRef, type ReactNode } from "react";
+import type { Phase } from "../lib/addQuest";
 import type { Severity, Warning } from "../lib/analysis";
 
 // A modal dialog, open while it's rendered. Escape or the backdrop closes it.
@@ -60,6 +61,30 @@ export function Chips<T>({
         );
       })}
     </div>
+  );
+}
+
+// A quest step's three parts, named the same everywhere.
+export const PHASE_LABELS: Record<Phase, string> = { pickup: "Pick up", objectives: "Objectives", turnin: "Turn in" };
+
+// Each part's mark, as on the game's map: ! to pick up, crossed swords for
+// the objectives, ? to turn in.
+export function PhaseIcon({ phase }: { phase: Phase }) {
+  if (phase === "objectives") {
+    return (
+      <svg className="phase-icon" viewBox="0 0 16 16" width="12" height="12" aria-hidden fill="none" stroke="currentColor">
+        <path
+          d="M3 3l8 8M13 3l-8 8M9.5 12.5l3-3M6.5 12.5l-3-3M12 12l1.5 1.5M4 12l-1.5 1.5"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+  return (
+    <span className="phase-icon" aria-hidden>
+      {phase === "pickup" ? "!" : "?"}
+    </span>
   );
 }
 

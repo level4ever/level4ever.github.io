@@ -12,11 +12,11 @@ export type Phase = "pickup" | "objectives" | "turnin";
 // The common ways a quest's steps are laid out.
 export const STEP_SHAPES: { label: string; phases: Phase[] }[] = [
   { label: "Pick up", phases: ["pickup"] },
-  { label: "Do", phases: ["objectives"] },
+  { label: "Objectives", phases: ["objectives"] },
   { label: "Turn in", phases: ["turnin"] },
-  { label: "Do + turn in", phases: ["objectives", "turnin"] },
-  { label: "Pick up + do", phases: ["pickup", "objectives"] },
-  { label: "All", phases: ["pickup", "objectives", "turnin"] },
+  { label: "Objectives + turn in", phases: ["objectives", "turnin"] },
+  { label: "Pick up + objectives", phases: ["pickup", "objectives"] },
+  { label: "Whole quest", phases: ["pickup", "objectives", "turnin"] },
 ];
 
 // Fills in the guide's per-quest settings from the data, where it has none:

@@ -665,6 +665,37 @@ dialog.dialog::backdrop {
   background: var(--accent);
   color: var(--accent-text);
 }
+/* The game's quest marks: ! pick up, swords for objectives, ? turn in. */
+.phase-icon {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  vertical-align: middle;
+}
+.phase-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.btn:not(.primary) .phase-icons {
+  color: var(--accent);
+}
+/* The selected step's everyday settings, under its name. */
+.step-quick {
+  grid-column: 3 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 2px 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: default;
+}
+.step-quick .btn {
+  margin-left: auto;
+}
 .insert-here {
   display: flex;
   align-items: center;
@@ -692,23 +723,6 @@ dialog.dialog::backdrop {
 }
 
 /* Side panel */
-.tabs {
-  display: flex;
-  gap: 2px;
-}
-.tab {
-  padding: 5px 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font-weight: 600;
-}
-.tab[aria-selected="true"] {
-  background: var(--raised);
-  color: var(--text);
-}
 .panel-section {
   display: grid;
   gap: 8px;

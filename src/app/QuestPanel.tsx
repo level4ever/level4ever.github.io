@@ -135,25 +135,30 @@ export function QuestPanel({ guide, index, profile }: { guide: Guide; index: Que
         <>
           <div className="panel-section">
             <h3>
-              In the quest log here <span className="muted">({inLog.length})</span>
+              Picked up, not turned in yet <span className="muted">({inLog.length})</span>
             </h3>
             {inLog.length === 0 ? (
-              <div className="muted small">Quests picked up before this point and not turned in yet show here.</div>
-            ) : (
-              <div className="quest-list">
-                {inLog.map((quest) => (
-                  <QuestCard
-                    key={quest.id}
-                    quest={quest}
-                    index={index}
-                    faction={guide.faction}
-                    playerLevel={state.levelFrom ?? state.levelTo}
-                    actions={IN_LOG_ACTIONS}
-                    onAdd={(phases) => add(quest, phases)}
-                    compact
-                  />
-                ))}
+              <div className="muted small">
+                Quests picked up before this point show here until they're turned in, to add their next step.
               </div>
+            ) : (
+              <>
+                <div className="muted small">Add each one's next step here: its objectives, its turn-in, or both.</div>
+                <div className="quest-list">
+                  {inLog.map((quest) => (
+                    <QuestCard
+                      key={quest.id}
+                      quest={quest}
+                      index={index}
+                      faction={guide.faction}
+                      playerLevel={state.levelFrom ?? state.levelTo}
+                      actions={IN_LOG_ACTIONS}
+                      onAdd={(phases) => add(quest, phases)}
+                      compact
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </div>
           <div className="panel-section">
@@ -225,15 +230,16 @@ function levelRange(from: number | undefined, to: number | undefined): string {
 
 type Action = { label: string; phases: Phase[]; primary?: boolean };
 
+// Each button adds one step, ticked as its marks show.
 const PICKUP_ACTIONS: Action[] = [
   { label: "Pick up", phases: ["pickup"], primary: true },
-  { label: "Pick up + do", phases: ["pickup", "objectives"] },
-  { label: "All", phases: ["pickup", "objectives", "turnin"] },
+  { label: "Pick up + objectives", phases: ["pickup", "objectives"] },
+  { label: "Whole quest", phases: ["pickup", "objectives", "turnin"] },
 ];
 
 const IN_LOG_ACTIONS: Action[] = [
-  { label: "Do", phases: ["objectives"] },
-  { label: "Do + turn in", phases: ["objectives", "turnin"], primary: true },
+  { label: "Objectives", phases: ["objectives"] },
+  { label: "Objectives + turn in", phases: ["objectives", "turnin"], primary: true },
   { label: "Turn in", phases: ["turnin"] },
 ];
 
@@ -244,7 +250,7 @@ function actionsFor(quest: Quest, state: GuideState): Action[] {
 
 function searchNote(quest: Quest, state: GuideState): string | undefined {
   if (state.turnedIn.has(quest.id)) return "Already turned in by this point";
-  if (state.picked.has(quest.id)) return "In the quest log here";
+  if (state.picked.has(quest.id)) return "Picked up, not turned in yet";
   return undefined;
 }
 

@@ -80,7 +80,7 @@ describe("the guide builder", () => {
       "new steps go here",
     ]);
     // It's in the log after that step, to do and turn in.
-    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Do + turn in" }));
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Objectives + turn in" }));
     // Its chain's next quest can now be picked up.
     await user.click(within(card("Cutting Teeth")).getByRole("button", { name: "Pick up" }));
 
@@ -98,9 +98,9 @@ describe("the guide builder", () => {
     const user = await newOrcGuide();
     expect(screen.getByRole("combobox", { name: "Zone" })).toHaveValue("Durotar");
     await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Pick up" }));
-    // It stays while steps are added, and through the other tab.
+    // It stays while steps are added, and through a step's settings.
     await user.dblClick(steps()[0]!);
-    await user.click(screen.getByRole("tab", { name: "Add quests" }));
+    await user.click(screen.getByRole("button", { name: "← Add quests" }));
     expect(screen.getByRole("combobox", { name: "Zone" })).toHaveValue("Durotar");
     // Opened again later, with steps in it: all zones.
     act(() => useApp.getState().open(useApp.getState().activeId));
@@ -148,21 +148,43 @@ describe("the guide builder", () => {
 
   test("shows problems on the step, and moves steps", async () => {
     const user = await newOrcGuide();
-    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "All" }));
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Whole quest" }));
     await user.click(within(card("Cutting Teeth")).getByRole("button", { name: "Pick up" }));
     // Untick the first step's turn-in: the second quest's chain isn't done.
     const [firstStep] = steps();
-    await user.click(within(firstStep!).getByRole("button", { name: "T" }));
+    await user.click(within(firstStep!).getByRole("button", { name: "Turn in" }));
     expect(steps()[1]).toHaveTextContent(/Needs "Your Place in the World" turned in first, but this guide never turns it in/);
     // Open the step to see everything about it.
     await user.dblClick(steps()[1]!);
-    expect(screen.getByRole("tab", { name: "Selected step" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { name: "Step settings" })).toBeInTheDocument();
     expect(screen.getByText("Quest 2 in this guide")).toBeInTheDocument();
+    // And back to adding quests.
+    await user.click(screen.getByRole("button", { name: "← Add quests" }));
+    expect(screen.getByRole("heading", { name: "Add quests" })).toBeInTheDocument();
+    expect(screen.queryByText("Quest 2 in this guide")).not.toBeInTheDocument();
+  });
+
+  test("the selected step shows its everyday settings; its edit button opens the rest", async () => {
+    const user = await newOrcGuide();
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Whole quest" }));
+    await user.click(within(card("Cutting Teeth")).getByRole("button", { name: "Pick up" }));
+    const guide = () => useApp.getState().guides[useApp.getState().activeId!]!.guide;
+    // Only the selected step (the one just added) shows them.
+    expect(within(steps()[0]!).queryByLabelText("Optional")).not.toBeInTheDocument();
+    await user.click(within(steps()[1]!).getByLabelText("Optional"));
+    expect(guide().optionalQuests[2]).toBe(true);
+    await user.click(within(steps()[1]!).getByLabelText("Ongoing"));
+    expect(guide().items[1]).toMatchObject({ ongoing: true });
+    // Still adding quests; the edit button opens the step's settings.
+    expect(screen.getByRole("heading", { name: "Add quests" })).toBeInTheDocument();
+    await user.click(within(steps()[0]!).getByRole("button", { name: "Edit step" }));
+    expect(screen.getByText("Quest 1 in this guide")).toBeInTheDocument();
+    expect(useApp.getState().selectedItemId).toBe(1);
   });
 
   test("undo and redo, by button and keyboard", async () => {
     const user = await newOrcGuide();
-    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "All" }));
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Whole quest" }));
     await user.click(within(card("Cutting Teeth")).getByRole("button", { name: "Pick up" }));
     expect(steps()).toHaveLength(3); // two steps and the "new steps go here" line
 
@@ -200,7 +222,7 @@ describe("the guide builder", () => {
 
   test("an edit waiting to be saved is written when the page is closed", async () => {
     const user = await newOrcGuide();
-    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "All" }));
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Whole quest" }));
     // Saved straight away when made; the step is still waiting.
     window.dispatchEvent(new Event("pagehide"));
     await waitFor(async () => expect((await loadGuides())[0]!.guide.items).toHaveLength(1));
@@ -227,7 +249,7 @@ describe("the guide builder", () => {
     await user.unhover(card("Cutting Teeth"));
     await waitFor(() => expect(document.querySelectorAll(".preview-marker")).toHaveLength(0));
 
-    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "All" }));
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Whole quest" }));
     // Picked up at Kaltunk's, turned in at Gornek's (from the quest data, so dashed).
     await waitFor(() => expect(document.querySelectorAll(".pin")).toHaveLength(2));
     expect(document.querySelectorAll(".pin.guessed")).toHaveLength(1);
@@ -238,7 +260,7 @@ describe("the guide builder", () => {
 
   test("showing a chapter selects its first step, with new steps still going at its end", async () => {
     const user = await newOrcGuide();
-    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "All" }));
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Whole quest" }));
     await user.click(within(card("Cutting Teeth")).getByRole("button", { name: "Pick up" }));
     await user.click(screen.getByRole("button", { name: "+ Add" }));
     expect(useApp.getState().selectedItemId).toBeUndefined(); // the new chapter has no steps
@@ -249,7 +271,7 @@ describe("the guide builder", () => {
 
   test("finds a quest by ID or name: only its chapters listed, the other steps dimmed", async () => {
     const user = await newOrcGuide();
-    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "All" }));
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Whole quest" }));
     await user.click(screen.getByRole("button", { name: "+ Add" }));
     await user.click(within(card("Cutting Teeth")).getByRole("button", { name: "Pick up" }));
     await user.click(within(card("Call of Earth")).getByRole("button", { name: "Pick up" }));
@@ -280,7 +302,7 @@ describe("the guide builder", () => {
 
   test("exports a string the addon's import reads back", async () => {
     const user = await newOrcGuide();
-    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "All" }));
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Whole quest" }));
     await user.click(screen.getByRole("button", { name: "Export string" }));
     const text = (screen.getByLabelText("Export string") as HTMLTextAreaElement).value;
     const stored = Object.values(useApp.getState().guides)[0]!;

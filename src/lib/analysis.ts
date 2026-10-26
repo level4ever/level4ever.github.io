@@ -216,7 +216,7 @@ export function analyzeGuide(guide: Guide, index: QuestIndex, profile: Profile):
   for (const questID of state.picked) {
     const item = lastStep.get(questID);
     if (item) {
-      warn(item, "info", "Still in the quest log at the end of the guide");
+      warn(item, "info", 'Never turned in: click a later step, then add it from "Picked up, not turned in yet"');
     }
   }
   return warnings;

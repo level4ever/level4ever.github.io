@@ -113,21 +113,18 @@ export function Editor({ stored }: { stored: StoredGuide }) {
           )}
         </section>
         <section className="column side-column" aria-label="Side panel">
+          {/* Adding quests is the usual view; a step's Edit button swaps in its settings until Back. */}
           <div className="column-head">
-            <div className="tabs" role="tablist">
-              <button className="tab" role="tab" aria-selected={!showStep} onClick={() => setTab("quests")}>
-                Add quests
-              </button>
-              <button
-                className="tab"
-                role="tab"
-                aria-selected={showStep}
-                disabled={selectedItemId === undefined}
-                onClick={() => setTab("step")}
-              >
-                Selected step
-              </button>
-            </div>
+            {showStep ? (
+              <>
+                <button className="btn ghost small" onClick={() => setTab("quests")}>
+                  ← Add quests
+                </button>
+                <h2 style={{ textAlign: "right" }}>Step settings</h2>
+              </>
+            ) : (
+              <h2>Add quests</h2>
+            )}
           </div>
           {data?.status === "error" ? (
             <div className="panel-section">
