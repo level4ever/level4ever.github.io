@@ -1,7 +1,7 @@
 // The shown chapter's steps. Click a step to select it (new steps go after
 // it); drag steps to reorder them, or onto a chapter to move them there.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Warning } from "../lib/analysis";
 import {
   batchItems,
@@ -17,7 +17,7 @@ import {
 } from "../lib/editor";
 import type { Guide, GuideItem, NoteKind, QuestItem } from "../lib/guide";
 import { className, type Profile, type QuestIndex } from "../lib/questData";
-import { DRAG_TYPE } from "./Chapters";
+import { DRAG_TYPE, foundQuests, isFound } from "./Chapters";
 import { cursorPosition, useApp } from "./store";
 import { SeverityIcon, worst } from "./ui";
 
@@ -55,6 +55,13 @@ export function Steps({
   const chapterId = useApp((s) => s.chapterId);
   const cursor = useApp((s) => s.cursor);
   const selected = useApp((s) => s.selectedItemId);
+  const findText = useApp((s) => s.findText);
+  const found = foundQuests(guide, index, findText);
+  const list = useRef<HTMLOListElement>(null);
+  // Bring the first found step into view as the search or chapter changes.
+  useEffect(() => {
+    list.current?.querySelector(".step.found")?.scrollIntoView?.({ block: "nearest" });
+  }, [findText, chapterId]);
   const [dragOver, setDragOver] = useState<{ id: number; after: boolean }>();
   // The step whose batch other steps are being clicked into (the addon's
   // Batch button), until Done or Esc.
@@ -157,7 +164,7 @@ export function Steps({
         </div>
       )}
       <div className="scroll">
-        <ol className="steps" aria-label={`Steps in ${chapter.name}`}>
+        <ol ref={list} className="steps" aria-label={`Steps in ${chapter.name}`}>
           {markerAt === 0 && <InsertMarker />}
           {items.length === 0 && (
             <li className="muted small" style={{ padding: "8px 12px" }}>
@@ -174,6 +181,7 @@ export function Steps({
               profile={profile}
               warnings={warnings.get(item.id)}
               selected={item.id === selected}
+              found={found && isFound(item, found)}
               marker={markerAt === i + 1}
               batchPlace={batchPlace(items, i)}
               batchSize={item.batch === undefined ? 0 : items.filter((other) => other.batch === item.batch).length}
@@ -236,6 +244,7 @@ function StepRow({
   profile,
   warnings,
   selected,
+  found,
   marker,
   batchPlace,
   batchSize,
@@ -260,6 +269,7 @@ function StepRow({
   profile: Profile;
   warnings: Warning[] | undefined;
   selected: boolean;
+  found: boolean | undefined; // undefined when not searching
   marker: boolean;
   dragOver?: "before" | "after";
   onDragOver: (after: boolean) => void;
@@ -285,6 +295,7 @@ function StepRow({
           batching === item.id ? "batch-anchor" : "",
           batching !== undefined && batching !== item.id ? "batch-pick" : "",
           otherClass ? "dimmed" : "",
+          found ? "found" : found === false ? "not-found" : "",
           dragOver ? `drag-over-${dragOver}` : "",
         ].join(" ")}
         aria-selected={selected}

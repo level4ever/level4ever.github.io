@@ -485,6 +485,13 @@ dialog.dialog::backdrop {
   font-size: 12px;
   color: var(--faint);
 }
+.find-quest {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.find-quest .input {
+  width: 100%;
+}
 
 /* Steps */
 .chapter-title {
@@ -579,6 +586,10 @@ dialog.dialog::backdrop {
 }
 .step.dimmed .step-name {
   color: var(--faint);
+}
+/* Find quest: the other steps fade, so the found ones stand out in place. */
+.step.not-found {
+  opacity: 0.35;
 }
 .step.drag-over-before::before,
 .step.drag-over-after::after {

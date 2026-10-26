@@ -44,6 +44,7 @@ interface AppState {
   // The side panel's zone filter: a zone's name, or the race's starting zone
   // (STARTING_ZONE), which a guide with no steps yet opens on.
   zoneFilter?: string;
+  findText: string; // the "Find quest" box: a quest ID or part of a name
   data: Partial<Record<Faction, DataState>>;
   history: History;
   deleted?: StoredGuide; // the guide deleted last, until it's restored or another goes
@@ -62,11 +63,13 @@ interface AppState {
   undo(): void;
   redo(): void;
   setProfile(profile: Profile): void;
-  showChapter(chapterId: number): void;
+  // `itemId` picks the step to select, instead of the chapter's first.
+  showChapter(chapterId: number, itemId?: number): void;
   select(itemId: number | undefined): void;
   setCursor(cursor: Cursor): void;
   setPreview(questID: number | undefined): void;
   setZoneFilter(zone: string | undefined): void;
+  setFindText(text: string): void;
   loadData(faction: Faction): void;
 }
 
@@ -178,6 +181,7 @@ export const useApp = create<AppState>()((setState, get) => {
     loaded: false,
     guides: {},
     data: {},
+    findText: "",
     history: NO_HISTORY,
 
     async load() {
@@ -246,6 +250,7 @@ export const useApp = create<AppState>()((setState, get) => {
         history: stored?.id === get().activeId ? get().history : NO_HISTORY,
         chapterId,
         selectedItemId: undefined,
+        findText: "",
         cursor: chapterId === undefined ? undefined : endOfChapter(stored!.guide, chapterId),
         // A brand new guide starts where its race starts.
         zoneFilter: stored && stored.guide.items.length === 0 && stored.profile.races.length > 0 ? STARTING_ZONE : undefined,
@@ -311,12 +316,12 @@ export const useApp = create<AppState>()((setState, get) => {
       }
     },
 
-    showChapter(chapterId) {
+    showChapter(chapterId, itemId) {
       const stored = get().activeId ? get().guides[get().activeId!] : undefined;
       // Its first step selected (so the map goes there), with new steps still
       // going at its end.
-      const first = stored?.guide.items.find((item) => item.chapterId === chapterId);
-      setState({ chapterId, selectedItemId: first?.id, cursor: stored && endOfChapter(stored.guide, chapterId) });
+      const first = itemId ?? stored?.guide.items.find((item) => item.chapterId === chapterId)?.id;
+      setState({ chapterId, selectedItemId: first, cursor: stored && endOfChapter(stored.guide, chapterId) });
     },
 
     select(itemId) {
@@ -333,6 +338,10 @@ export const useApp = create<AppState>()((setState, get) => {
 
     setZoneFilter(zoneFilter) {
       setState({ zoneFilter });
+    },
+
+    setFindText(findText) {
+      setState({ findText });
     },
 
     loadData(faction) {

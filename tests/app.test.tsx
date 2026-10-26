@@ -38,6 +38,7 @@ beforeEach(() => {
     data: {},
     cursor: undefined,
     selectedItemId: undefined,
+    findText: "",
     history: { past: [], future: [] },
     deleted: undefined,
   });
@@ -244,6 +245,37 @@ describe("the guide builder", () => {
     await user.click(screen.getAllByText("Chapter 1")[0]!.closest(".chapter")!);
     expect(useApp.getState().selectedItemId).toBe(1);
     expect(useApp.getState().cursor).toEqual({ itemId: 2 });
+  });
+
+  test("finds a quest by ID or name: only its chapters listed, the other steps dimmed", async () => {
+    const user = await newOrcGuide();
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "All" }));
+    await user.click(screen.getByRole("button", { name: "+ Add" }));
+    await user.click(within(card("Cutting Teeth")).getByRole("button", { name: "Pick up" }));
+    await user.click(within(card("Call of Earth")).getByRole("button", { name: "Pick up" }));
+    const chapters = () => [...document.querySelectorAll(".chapter .chapter-name")].map((el) => el.textContent);
+    const find = screen.getByRole("searchbox", { name: "Find quest" });
+
+    await user.type(find, "2"); // Cutting Teeth
+    expect(chapters()).toEqual(["Chapter 2"]);
+    expect(screen.getByText("1 of 2 steps")).toBeInTheDocument();
+    expect(steps().filter((li) => li.classList.contains("found"))).toHaveLength(1);
+    expect(steps().filter((li) => li.classList.contains("not-found"))).toHaveLength(1);
+
+    // By name; clicking a chapter selects its first found step.
+    await user.clear(find);
+    await user.type(find, "place in the");
+    expect(chapters()).toEqual(["Chapter 1"]);
+    await user.click(screen.getByText("Chapter 1").closest(".chapter")!);
+    expect(useApp.getState().selectedItemId).toBe(1);
+
+    await user.clear(find);
+    await user.type(find, "999");
+    expect(chapters()).toEqual([]);
+    expect(screen.getByText("No chapter has that quest.")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(chapters()).toEqual(["Chapter 1", "Chapter 2"]);
+    expect(steps().some((li) => li.classList.contains("not-found"))).toBe(false);
   });
 
   test("exports a string the addon's import reads back", async () => {

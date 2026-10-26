@@ -97,7 +97,7 @@ export function Editor({ stored }: { stored: StoredGuide }) {
         </button>
       </div>
       <main className="editor">
-        <Chapters guide={guide} warnings={warnings} />
+        <Chapters guide={guide} index={index} warnings={warnings} />
         <Steps
           guide={guide}
           index={index}
