@@ -313,7 +313,10 @@ export const useApp = create<AppState>()((setState, get) => {
 
     showChapter(chapterId) {
       const stored = get().activeId ? get().guides[get().activeId!] : undefined;
-      setState({ chapterId, cursor: stored && endOfChapter(stored.guide, chapterId) });
+      // Its first step selected (so the map goes there), with new steps still
+      // going at its end.
+      const first = stored?.guide.items.find((item) => item.chapterId === chapterId);
+      setState({ chapterId, selectedItemId: first?.id, cursor: stored && endOfChapter(stored.guide, chapterId) });
     },
 
     select(itemId) {

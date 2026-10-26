@@ -235,6 +235,17 @@ describe("the guide builder", () => {
     expect(screen.getByRole("button", { name: "Turn-in spot" })).toBeInTheDocument();
   });
 
+  test("showing a chapter selects its first step, with new steps still going at its end", async () => {
+    const user = await newOrcGuide();
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "All" }));
+    await user.click(within(card("Cutting Teeth")).getByRole("button", { name: "Pick up" }));
+    await user.click(screen.getByRole("button", { name: "+ Add" }));
+    expect(useApp.getState().selectedItemId).toBeUndefined(); // the new chapter has no steps
+    await user.click(screen.getAllByText("Chapter 1")[0]!.closest(".chapter")!);
+    expect(useApp.getState().selectedItemId).toBe(1);
+    expect(useApp.getState().cursor).toEqual({ itemId: 2 });
+  });
+
   test("exports a string the addon's import reads back", async () => {
     const user = await newOrcGuide();
     await user.click(within(card("Your Place in the World")).getByRole("button", { name: "All" }));

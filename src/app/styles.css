@@ -955,8 +955,29 @@ dialog.dialog::backdrop {
 .pin-dot.pin-spawn {
   background: rgba(232, 102, 90, 0.5);
 }
+/* Several steps at one place: a stack of pins with a count badge, on the
+   left, as the labels for other maps sit to the right. */
 .pin.stacked {
-  font-size: 10px;
+  box-shadow:
+    -3px -3px 0 -1px #1b1408,
+    0 1px 4px rgba(0, 0, 0, 0.6);
+}
+.pin-count {
+  position: absolute;
+  top: -8px;
+  left: -10px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border: 1.5px solid #fff;
+  border-radius: 8px;
+  background: #1b1408;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 13px;
+  text-align: center;
 }
 .map-exit,
 .map-entry {

@@ -110,11 +110,16 @@ export function MapView({ guide, index, profile }: { guide: Guide; index: QuestI
     return [...counts].sort((a, b) => b[1] - a[1]).map(([id]) => id);
   }, [chapterRoute]);
 
-  // Follow the selected step to its map; otherwise the chapter's main map.
+  // Follow the selected step to its map; otherwise, on a new chapter, the
+  // chapter's main map.
   const selectedMap = route.find((point) => point.itemId === selectedId)?.coords.mapID;
+  const lastChapter = useRef(chapterId);
   useEffect(() => {
+    const newChapter = lastChapter.current !== chapterId;
+    lastChapter.current = chapterId;
     if (selectedMap !== undefined) setMapId(selectedMap);
-  }, [selectedMap]);
+    else if (newChapter) setMapId(undefined);
+  }, [selectedMap, chapterId]);
   const fallback = chapterMaps[0] ?? startingCoords(index, profile)?.mapID ?? 1411;
   const shown = typeof maps === "object" ? (maps.get(mapId ?? fallback) ?? maps.get(fallback)) : undefined;
   const shownId = shown?.id;
@@ -423,7 +428,7 @@ function LeafletMap({
           className: "map-exit",
           html: `<span>→ ${escape(mapName(exit.map))} · steps ${steps}</span>`,
           iconSize: undefined,
-          iconAnchor: [-14, 26],
+          iconAnchor: [-20, 26],
         }),
         zIndexOffset: 1500,
         title: `Then to ${mapName(exit.map)} for steps ${steps}. Click to show that map.`,
@@ -437,7 +442,7 @@ function LeafletMap({
           className: "map-entry",
           html: `<span>from ${escape(mapName(entry.map))}</span>`,
           iconSize: undefined,
-          iconAnchor: [-14, -6],
+          iconAnchor: [-20, -6],
         }),
         zIndexOffset: 1400,
         title: `Coming from ${mapName(entry.map)}. Click to show that map.`,
@@ -452,19 +457,19 @@ function LeafletMap({
       const lead = chosen ?? group[0]!;
       const stepNumbers = group.map((p) => numbers.get(p.itemId) ?? 0);
       const unique = [...new Set(stepNumbers)];
-      const text = unique.length <= 2 ? unique.join(",") : `${unique[0]}+${unique.length - 1}`;
-      const title = group
-        .map((p) => {
-          const item = getItem(guide, p.itemId);
-          return `${numbers.get(p.itemId)}. ${KIND_LABELS[p.kind]}: ${item ? stepTitle(item, index) : ""}${p.fromGuide ? "" : " (from the quest data)"}`;
-        })
-        .join("\n");
+      const lines = group.map((p) => {
+        const item = getItem(guide, p.itemId);
+        return `${numbers.get(p.itemId)}. ${KIND_LABELS[p.kind]}: ${item ? stepTitle(item, index) : ""}${p.fromGuide ? "" : " (from the quest data)"}`;
+      });
+      const title = unique.length > 1 ? `${unique.length} steps here:\n${lines.join("\n")}` : lines.join("\n");
+      // A shared pin shows its first (or selected) step, with a badge counting all of them.
+      const badge = unique.length > 1 ? `<b class="pin-count">${unique.length}</b>` : "";
       const marker = L.marker(at(lead.coords), {
         // A zero-size anchor at the spot, with the pin centred on it and as
-        // wide as its numbers (step numbers run into the hundreds).
+        // wide as its number (step numbers run into the hundreds).
         icon: L.divIcon({
           className: "pin-anchor",
-          html: `<span class="pin pin-${lead.kind}${chosen ? " selected" : ""}${lead.fromGuide ? "" : " guessed"}${unique.length > 1 ? " stacked" : ""}">${text}</span>`,
+          html: `<span class="pin pin-${lead.kind}${chosen ? " selected" : ""}${lead.fromGuide ? "" : " guessed"}${unique.length > 1 ? " stacked" : ""}">${numbers.get(lead.itemId) ?? unique[0]}${badge}</span>`,
           iconSize: [0, 0],
           iconAnchor: [0, 0],
         }),
