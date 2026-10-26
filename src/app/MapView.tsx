@@ -192,11 +192,12 @@ export function MapView({ guide, index, profile }: { guide: Guide; index: QuestI
             {elsewhere} of this chapter's {chapterRoute.length} stops are on other maps.
           </span>
         )}
-        {previewElsewhere && (
-          <span className="small sev-info">
-            {preview!.name} is in {previewMaps.map((id) => maps.get(id)?.name ?? `map ${id}`).join(", ")}.
-          </span>
-        )}
+        {/* Always there, so hovering quests down the side list doesn't shift the map. */}
+        <span className="small sev-info preview-where">
+          {previewElsewhere
+            ? `${preview!.name} is in ${previewMaps.map((id) => maps.get(id)?.name ?? `map ${id}`).join(", ")}.`
+            : " "}
+        </span>
       </div>
       <LeafletMap
         map={shown}
@@ -459,11 +460,13 @@ function LeafletMap({
         })
         .join("\n");
       const marker = L.marker(at(lead.coords), {
+        // A zero-size anchor at the spot, with the pin centred on it and as
+        // wide as its numbers (step numbers run into the hundreds).
         icon: L.divIcon({
-          className: `pin pin-${lead.kind}${chosen ? " selected" : ""}${lead.fromGuide ? "" : " guessed"}${unique.length > 1 ? " stacked" : ""}`,
-          html: `<span>${text}</span>`,
-          iconSize: unique.length > 1 ? [34, 24] : [24, 24],
-          iconAnchor: unique.length > 1 ? [17, 12] : [12, 12],
+          className: "pin-anchor",
+          html: `<span class="pin pin-${lead.kind}${chosen ? " selected" : ""}${lead.fromGuide ? "" : " guessed"}${unique.length > 1 ? " stacked" : ""}">${text}</span>`,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
         }),
         zIndexOffset: chosen ? 1000 : 0,
         title,

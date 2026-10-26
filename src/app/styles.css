@@ -868,6 +868,11 @@ dialog.dialog::backdrop {
 .map-toolbar {
   gap: 6px;
 }
+.preview-where {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .coords-readout {
   min-width: 80px;
   font-variant-numeric: tabular-nums;
@@ -891,11 +896,24 @@ dialog.dialog::backdrop {
 .leaflet-container {
   font: inherit;
 }
+.pin-anchor {
+  overflow: visible;
+}
 .pin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
   display: grid;
   place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
   border: 2px solid #1b1408;
-  border-radius: 50%;
+  border-radius: 12px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
   color: #1b1408;
   font-size: 11px;
   font-weight: 800;
@@ -938,7 +956,6 @@ dialog.dialog::backdrop {
   background: rgba(232, 102, 90, 0.5);
 }
 .pin.stacked {
-  border-radius: 12px;
   font-size: 10px;
 }
 .map-exit,
