@@ -822,15 +822,12 @@ dialog.dialog::backdrop {
 .section-toggle[aria-expanded="true"] .chevron {
   transform: rotate(90deg);
 }
+/* As many quests to a row as fit at 380px or more each (room for the add
+   buttons' labels), so a wider side panel shows more at once. */
 .quest-list {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr));
   gap: 6px;
-}
-/* A wide side panel lists quests two to a row. */
-@container side (min-width: 760px) {
-  .quest-list {
-    grid-template-columns: 1fr 1fr;
-  }
 }
 .quest-card {
   container-type: inline-size;
@@ -861,7 +858,7 @@ dialog.dialog::backdrop {
 .action-label {
   display: none;
 }
-@container (min-width: 380px) {
+@container (min-width: 340px) {
   .quest-card .action-label {
     display: inline;
   }
@@ -975,7 +972,6 @@ dialog.dialog::backdrop {
 }
 .side-column {
   grid-area: side;
-  container: side / inline-size;
 }
 /* Leaflet places markers with transform, so the pulse is on an inner ring. */
 .here-marker::after {
