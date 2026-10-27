@@ -928,11 +928,41 @@ dialog.dialog::backdrop {
 }
 
 /* Map: always beside the steps */
-/* The map and Add quests share what's left: the map's art is letterboxed in
-   a wide column, so it gains little past its share. */
+/* By default the map and Add quests share what's left: the map's art is
+   letterboxed in a wide column, so it gains little past its share. Columns
+   the viewer has resized come in as --editor-columns (see columns.ts). The
+   zero-width tracks between them hold the resize handles. */
 .editor {
-  grid-template-columns: 200px minmax(320px, 400px) minmax(380px, 1.2fr) minmax(360px, 1fr);
-  grid-template-areas: "chapters steps map side";
+  grid-template-columns: var(
+    --editor-columns,
+    200px 0 minmax(320px, 400px) 0 minmax(380px, 1.2fr) 0 minmax(360px, 1fr)
+  );
+  grid-template-areas: "chapters s1 steps s2 map s3 side";
+}
+/* A resize handle, centred on the border between two columns. */
+.col-splitter {
+  position: relative;
+  z-index: 1100; /* over the map's own controls */
+  grid-row: 1;
+  width: 9px;
+  margin: 0 -4px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.col-splitter::after {
+  content: "";
+  position: absolute;
+  inset: 0 3px;
+  border-radius: 2px;
+  transition: background 0.15s;
+}
+.col-splitter:hover::after,
+.col-splitter:focus-visible::after,
+.col-splitter.dragging::after {
+  background: var(--accent);
+}
+.col-splitter:focus-visible {
+  outline: none;
 }
 .editor > nav.column {
   grid-area: chapters;
@@ -1166,6 +1196,11 @@ dialog.dialog::backdrop {
   }
   .side-column {
     border-top: 1px solid var(--border);
+  }
+  /* Column sizes are for the four-column layout only. */
+  .col-splitter,
+  .reset-columns {
+    display: none;
   }
 }
 

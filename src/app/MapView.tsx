@@ -315,8 +315,13 @@ function LeafletMap({
     });
     const escape = (event: KeyboardEvent) => event.key === "Escape" && handlers.current.onStopPicking();
     window.addEventListener("keydown", escape);
+    // Leaflet only notices the window resizing, not its column (a dragged
+    // column edge, or the layout changing at a breakpoint).
+    const resized = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(() => view.invalidateSize());
+    resized?.observe(container.current!);
     leaflet.current = { map: view, layers };
     return () => {
+      resized?.disconnect();
       window.removeEventListener("keydown", escape);
       view.remove();
       leaflet.current = undefined;

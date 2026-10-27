@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import "fake-indexeddb/auto";
-import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { App } from "../src/app/App";
+import { gridColumns } from "../src/app/columns";
 import { loadGuides, saveGuide } from "../src/app/storage";
 import { useApp } from "../src/app/store";
 import { insertItems, newGuide } from "../src/lib/editor";
@@ -533,5 +534,56 @@ describe("the guide builder", () => {
       "Pick up + objectives",
       "Whole quest",
     ]);
+  });
+
+  describe("column sizes", () => {
+    const editor = () => document.querySelector<HTMLElement>("main.editor")!;
+    const columns = () => editor().style.getPropertyValue("--editor-columns");
+    const reset = () => screen.getByRole("button", { name: "Reset column sizes" });
+    const saved = () => JSON.parse(localStorage.getItem("level4ever:columns") ?? "null");
+
+    test("dragging a handle between two columns trades width between them, kept once it's let go", async () => {
+      await newOrcGuide();
+      // jsdom lays nothing out: the columns as in a 1920px window.
+      const widths: Record<string, number> = { Chapters: 200, Steps: 400, Map: 720, "Side panel": 600 };
+      vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+        return { width: widths[this.getAttribute("aria-label") ?? ""] ?? 0 } as DOMRect;
+      });
+      expect(columns()).toBe("");
+      expect(reset()).toBeDisabled();
+
+      const handle = screen.getByRole("separator", { name: "Resize the map and the Add quests column" });
+      fireEvent.pointerDown(handle, { button: 0, clientX: 1500, pointerId: 1 });
+      fireEvent.pointerMove(handle, { clientX: 1400, pointerId: 1 });
+      // Shown while dragging, kept when it ends.
+      expect(columns()).toBe(gridColumns({ chapters: 200, steps: 400, side: 700 }));
+      expect(saved()).toBeNull();
+      fireEvent.pointerUp(handle, { clientX: 1400, pointerId: 1 });
+      expect(saved()).toEqual({ chapters: 200, steps: 400, side: 700 });
+      expect(reset()).toBeEnabled();
+      // Moving the mouse after letting go does nothing.
+      fireEvent.pointerMove(handle, { clientX: 900, pointerId: 1 });
+      expect(saved()).toEqual({ chapters: 200, steps: 400, side: 700 });
+      vi.restoreAllMocks();
+    });
+
+    test("a handle moves with the arrow keys, sizes are remembered, and reset puts back the defaults", async () => {
+      const user = await newOrcGuide();
+      screen.getByRole("separator", { name: "Resize the chapters and steps columns" }).focus();
+      await user.keyboard("{ArrowRight}");
+      expect(saved()).toEqual({ chapters: expect.any(Number), steps: expect.any(Number), side: expect.any(Number) });
+      expect(columns()).toBe(gridColumns(saved()));
+
+      // The next time the editor opens, they're as left.
+      cleanup();
+      render(<App />);
+      await waitFor(() => expect(reset()).toBeEnabled());
+      expect(columns()).toBe(gridColumns(saved()));
+
+      await user.click(reset());
+      expect(saved()).toBeNull();
+      expect(columns()).toBe("");
+      expect(reset()).toBeDisabled();
+    });
   });
 });

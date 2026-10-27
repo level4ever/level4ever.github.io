@@ -1,11 +1,12 @@
 // Editing one guide: chapters, the chapter's steps, and the side panel for
 // adding quests and editing the selected step.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { analyzeGuide, type Warning } from "../lib/analysis";
 import { cleanName } from "../lib/editor";
 import { className, racesFor } from "../lib/questData";
 import { Chapters } from "./Chapters";
+import { gridColumns, resizeColumns, useColumnSizes, type ColumnSizes, type ColumnWidths } from "./columns";
 import { ExportDialog, ProfileDialog } from "./dialogs";
 import { MapView } from "./MapView";
 import { QuestPanel } from "./QuestPanel";
@@ -49,6 +50,63 @@ function UndoButtons() {
   );
 }
 
+// A handle between two columns: drag it, or focus it and use the arrow keys
+// (with Shift for bigger steps), to trade width between them.
+function ColumnSplitter({
+  splitter,
+  label,
+  measure,
+  onResize,
+  onDone,
+}: {
+  splitter: number;
+  label: string;
+  measure: () => ColumnWidths;
+  onResize: (sizes: ColumnSizes) => void; // while dragging
+  onDone: (sizes: ColumnSizes) => void; // to keep
+}) {
+  const drag = useRef<{ x: number; start: ColumnWidths; last?: ColumnSizes }>(undefined);
+  const [dragging, setDragging] = useState(false);
+  const end = () => {
+    if (drag.current?.last) onDone(drag.current.last);
+    drag.current = undefined;
+    setDragging(false);
+  };
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={label}
+      tabIndex={0}
+      className={`col-splitter${dragging ? " dragging" : ""}`}
+      style={{ gridArea: `s${splitter + 1}` }}
+      title="Drag to resize these columns"
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        event.preventDefault(); // no text selection while dragging
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        drag.current = { x: event.clientX, start: measure() };
+        setDragging(true);
+      }}
+      onPointerMove={(event) => {
+        const { x, start } = drag.current ?? {};
+        if (!start || x === undefined) return;
+        drag.current!.last = resizeColumns(start, splitter, event.clientX - x);
+        onResize(drag.current!.last);
+      }}
+      onPointerUp={end}
+      onPointerCancel={end}
+      onKeyDown={(event) => {
+        const step = event.key === "ArrowLeft" ? -16 : event.key === "ArrowRight" ? 16 : 0;
+        if (step) {
+          event.preventDefault();
+          onDone(resizeColumns(measure(), splitter, event.shiftKey ? step * 4 : step));
+        }
+      }}
+    />
+  );
+}
+
 export function Editor({ stored }: { stored: StoredGuide }) {
   const { guide, profile } = stored;
   const data = useQuestIndex(guide.faction);
@@ -65,6 +123,15 @@ export function Editor({ stored }: { stored: StoredGuide }) {
   const races = racesFor(guide.faction).filter((r) => profile.races.includes(r.id));
   const who = [races.map((r) => r.name).join("/") || `Any ${guide.faction} race`, profile.class ? className(profile.class) : "any class"];
   const showStep = selectedItemId !== undefined && tab === "step";
+  const columns = useColumnSizes();
+  const main = useRef<HTMLElement>(null);
+  const measure = (): ColumnWidths => {
+    const width = (label: string) => main.current?.querySelector(`:scope > [aria-label="${label}"]`)?.getBoundingClientRect().width ?? 0;
+    return { chapters: width("Chapters"), steps: width("Steps"), map: width("Map"), side: width("Side panel") };
+  };
+  const splitter = (index: number, label: string) => (
+    <ColumnSplitter splitter={index} label={label} measure={measure} onResize={columns.set} onDone={columns.save} />
+  );
 
   return (
     <div className="editor-shell">
@@ -91,13 +158,26 @@ export function Editor({ stored }: { stored: StoredGuide }) {
           {who.join(", ")} ✎
         </button>
         <div className="spacer" />
+        <button
+          className="btn ghost small reset-columns"
+          disabled={!columns.sizes}
+          title="Put the columns back to their default widths"
+          onClick={columns.reset}
+        >
+          Reset column sizes
+        </button>
         <UndoButtons />
         <button className="btn primary" onClick={() => setDialog("export")}>
           Export string
         </button>
       </div>
-      <main className="editor">
+      <main
+        ref={main}
+        className="editor"
+        style={columns.sizes && ({ "--editor-columns": gridColumns(columns.sizes) } as CSSProperties)}
+      >
         <Chapters guide={guide} index={index} warnings={warnings} />
+        {splitter(0, "Resize the chapters and steps columns")}
         <Steps
           guide={guide}
           index={index}
@@ -105,6 +185,7 @@ export function Editor({ stored }: { stored: StoredGuide }) {
           warnings={warnings}
           onOpenStep={() => setTab("step")}
         />
+        {splitter(1, "Resize the steps column and the map")}
         <section className="column map-column" aria-label="Map">
           {index ? (
             <MapView guide={guide} index={index} profile={profile} />
@@ -112,6 +193,7 @@ export function Editor({ stored }: { stored: StoredGuide }) {
             <div className="panel-section notice">Loading the map…</div>
           )}
         </section>
+        {splitter(2, "Resize the map and the Add quests column")}
         <section className="column side-column" aria-label="Side panel">
           {/* Adding quests is the usual view; a step's Edit button swaps in its settings until Back. */}
           <div className="column-head">
