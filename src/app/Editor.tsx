@@ -137,7 +137,7 @@ export function Editor({ stored }: { stored: StoredGuide }) {
               <div className="notice">Loading {guide.faction} quests…</div>
             </div>
           ) : showStep ? (
-            <StepPanel guide={guide} index={index} profile={profile} itemId={selectedItemId} warnings={warnings} />
+            <StepPanel guide={guide} index={index} itemId={selectedItemId} warnings={warnings} />
           ) : (
             <QuestPanel guide={guide} index={index} profile={profile} />
           )}

@@ -16,6 +16,7 @@ import {
   renameChapter,
   setChapterLevel,
   setOptional,
+  toggleObjective,
   unbatchItem,
   updateItem,
 } from "../lib/editor";
@@ -78,6 +79,10 @@ export function Steps({
     return () => window.removeEventListener("keydown", stop);
   }, [batching]);
   useEffect(() => setBatching(undefined), [chapterId]);
+  // The anchor deleted (or undone away) ends it, or clicks would go nowhere.
+  useEffect(() => {
+    if (batching !== undefined && !getItem(guide, batching)) setBatching(undefined);
+  }, [guide, batching]);
   const app = useApp.getState();
   const chapter = chapterId === undefined ? undefined : getChapter(guide, chapterId);
   if (!chapter) {
@@ -433,13 +438,7 @@ export function Ticks({ item }: { item: QuestItem }) {
 function QuickSettings({ guide, item, index }: { guide: Guide; item: QuestItem; index: QuestIndex | undefined }) {
   const app = useApp.getState();
   const objectives = index?.byId.get(item.quest)?.objectives ?? [];
-  const all = objectives.map((_, i) => i + 1);
-  const chosen = Array.isArray(item.objectives) ? item.objectives : all;
-  const toggleObjective = (n: number) => {
-    const next = chosen.includes(n) ? chosen.filter((o) => o !== n) : [...chosen, n].sort((a, b) => a - b);
-    if (next.length === 0) return; // a step that does objectives does at least one
-    app.edit((g) => updateItem(g, item.id, { objectives: next.length === all.length ? true : next }));
-  };
+  const chosen = (n: number) => item.objectives === true || (Array.isArray(item.objectives) && item.objectives.includes(n));
   return (
     <div className="step-quick" onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
       {item.objectives && objectives.length > 1 && (
@@ -448,15 +447,25 @@ function QuickSettings({ guide, item, index }: { guide: Guide; item: QuestItem; 
             <button
               key={i}
               className="tick"
-              aria-pressed={chosen.includes(i + 1)}
+              aria-pressed={chosen(i + 1)}
               title={objectiveText(index!, objective)}
-              onClick={() => toggleObjective(i + 1)}
+              onClick={() => app.edit((g) => toggleObjective(g, item.id, i + 1, objectives.length))}
             >
               {i + 1}
             </button>
           ))}
         </span>
       )}
+      <QuestOptions guide={guide} item={item} />
+    </div>
+  );
+}
+
+// A quest step's Ongoing and Optional boxes.
+export function QuestOptions({ guide, item }: { guide: Guide; item: QuestItem }) {
+  const app = useApp.getState();
+  return (
+    <>
       <label className="row" title="Worked on in the background until its next step">
         <input
           type="checkbox"
@@ -473,6 +482,6 @@ function QuickSettings({ guide, item, index }: { guide: Guide; item: QuestItem; 
         />
         Optional
       </label>
-    </div>
+    </>
   );
 }

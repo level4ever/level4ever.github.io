@@ -5,3 +5,5 @@ node_modules/
 public/data/
 # Built site (npm run build)
 dist/
+# Python bytecode (tools/)
+__pycache__/

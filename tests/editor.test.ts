@@ -1,10 +1,9 @@
 import { describe, expect, test } from "vitest";
-import type { Guide } from "../src/lib/guide";
+import type { Guide, QuestItem } from "../src/lib/guide";
 import { exportGuide, importGuide } from "../src/lib/guideString";
 import {
   addChapter,
   batchItems,
-  chapterItems,
   cleanName,
   copyGuide,
   deleteChapter,
@@ -13,12 +12,14 @@ import {
   moveChapter,
   moveItem,
   newGuide,
+  questsInGuide,
   setBatchedWithPrevious,
   setChapterLevel,
+  toggleObjective,
   unbatchItem,
 } from "../src/lib/editor";
 import { addQuestStep } from "../src/lib/addQuest";
-import { analyzeGuide, availableQuests, stateAt } from "../src/lib/analysis";
+import { DEFAULT_AVAILABLE_OPTIONS, analyzeGuide, availableQuests, stateAt } from "../src/lib/analysis";
 import { indexQuestData, questRegion, startingCoords, startingZone, unavailableReason, type Profile } from "../src/lib/questData";
 import { DATA, INDEX, QUESTS } from "./sampleData";
 
@@ -48,6 +49,22 @@ describe("editing a guide", () => {
   test("names are cut at the addon's 60 bytes, whole characters only", () => {
     expect(new TextEncoder().encode(cleanName("✓".repeat(30))).length).toBe(60);
     expect(cleanName("é".repeat(40))).toBe("é".repeat(30));
+    expect(cleanName("  Valley  ")).toBe("Valley");
+  });
+
+  test("the quests a guide has steps for", () => {
+    const guide = sample();
+    expect(questsInGuide(guide)).toEqual(new Set());
+    insertItems(
+      guide,
+      [
+        { type: "quest", quest: 1, pickup: true },
+        { type: "quest", quest: 1, turnin: true },
+        { type: "quest", quest: 2, pickup: true },
+      ],
+      { chapterId: 2, index: 0 },
+    );
+    expect(questsInGuide(guide)).toEqual(new Set([1, 2]));
   });
 
   test("items go where they're put and stay grouped by chapter", () => {
@@ -133,6 +150,36 @@ describe("batching, as the addon's Batch button does", () => {
     unbatchItem(guide, 2);
     expect(ids(guide)).toEqual([1, 3, 2, 4, 5, 6]);
     expect(batches(guide)).toBe("1 1 - - - -");
+  });
+});
+
+describe("a quest step's objectives", () => {
+  // A step doing Cutting Teeth's two objectives.
+  function step(): Guide {
+    const guide = newGuide("Test", "Horde");
+    addQuestStep(guide, INDEX, quest(2), ["objectives"], { chapterId: 1, index: 0 }, anyone);
+    return guide;
+  }
+  const objectives = (guide: Guide) => (guide.items[0] as QuestItem).objectives;
+
+  test("ticked one at a time: every one ticked is all of them, and the last one stays", () => {
+    const guide = step();
+    toggleObjective(guide, 1, 1, 2);
+    expect(objectives(guide)).toEqual([2]);
+    toggleObjective(guide, 1, 2, 2); // the only one left
+    expect(objectives(guide)).toEqual([2]);
+    toggleObjective(guide, 1, 1, 2);
+    expect(objectives(guide)).toBe(true);
+  });
+
+  test("a step that doesn't do objectives, or isn't a quest, is left alone", () => {
+    const guide = step();
+    delete (guide.items[0] as QuestItem).objectives;
+    toggleObjective(guide, 1, 1, 2);
+    expect(objectives(guide)).toBeUndefined();
+    insertItems(guide, [{ type: "note", text: "x" }], { chapterId: 1, index: 1 });
+    toggleObjective(guide, 2, 1, 2);
+    expect(guide.items[1]).toEqual({ id: 2, chapterId: 1, type: "note", text: "x" });
   });
 });
 
@@ -309,5 +356,29 @@ describe("reading a guide in order", () => {
     // After the chain: the rest, lowest level first.
     expect(names(guide.items.length)).toEqual(["4:ready", "8:ready", "3:ready"]);
     expect(names(guide.items.length, { races: [2], class: "WARRIOR", professions: [] })).toEqual(["8:ready"]);
+  });
+
+  test("quests to pick up say which of their prerequisites are still needed", () => {
+    const guide = chain();
+    setChapterLevel(guide, 1, 3);
+    guide.questPrereqs[2] = [1, 99]; // the data's, and one set in the guide
+    guide.questPrereqs[4] = [99]; // only one set in the guide
+    const at = (index: number) =>
+      Object.fromEntries(
+        availableQuests(guide, INDEX, anyone, stateAt(guide, anyone, index), { ...DEFAULT_AVAILABLE_OPTIONS, locked: true }).map(
+          (a) => [a.quest.id, { status: a.status, needs: a.needs, needsAny: a.needsAny }],
+        ),
+      );
+    expect(at(0)).toMatchObject({
+      1: { status: "ready", needs: [], needsAny: [] },
+      2: { status: "locked", needs: [1, 99], needsAny: [] },
+      4: { status: "earlier", needs: [99], needsAny: [] },
+      8: { status: "earlier", needs: [], needsAny: [1, 9] },
+    });
+    // Once 1 is turned in, it's no longer listed.
+    expect(at(2)).toMatchObject({
+      2: { status: "earlier", needs: [99], needsAny: [] },
+      8: { status: "ready", needs: [], needsAny: [] },
+    });
   });
 });

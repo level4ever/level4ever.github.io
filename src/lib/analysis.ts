@@ -249,12 +249,18 @@ export interface AvailableQuest {
   // this guide (perhaps done in an earlier one). locked: needs quests this
   // guide only turns in later.
   status: "ready" | "earlier" | "locked";
+  // The prerequisites not turned in yet, from the data and the guide: every
+  // one of `needs`, and one of `needsAny`.
+  needs: number[];
+  needsAny: number[];
   distance?: number; // to the giver, across the map (0-1), if on the same map
 }
 
 export interface AvailableOptions {
   levelBelow: number; // hide quests this far under the current level (grey)
   levelAbove: number; // and this far over
+  redAbove: number; // and quests this far over the current level in themselves (red)
+  anyLevel: boolean; // none of the above
   repeatable: boolean;
   locked: boolean;
 }
@@ -262,7 +268,33 @@ export interface AvailableOptions {
 // The game colours a quest red from 5 levels above the player.
 const RED_LEVELS = 5;
 
-export const DEFAULT_AVAILABLE_OPTIONS: AvailableOptions = { levelBelow: 6, levelAbove: 2, repeatable: false, locked: false };
+export const DEFAULT_AVAILABLE_OPTIONS: AvailableOptions = {
+  levelBelow: 6,
+  levelAbove: 2,
+  redAbove: RED_LEVELS,
+  anyLevel: false,
+  repeatable: false,
+  locked: false,
+};
+
+// The quest levels offered at a point: `from` to `to` (quests for any level
+// always), that can be picked up by level `pickupBy`. Undefined when every
+// level is: the chapter has no level target, or the options say any level.
+export function levelWindow(
+  state: GuideState,
+  options: AvailableOptions = DEFAULT_AVAILABLE_OPTIONS,
+): { from: number; to: number; pickupBy: number } | undefined {
+  const top = state.levelTo ?? state.levelFrom;
+  const bottom = state.levelFrom ?? state.levelTo;
+  if (top === undefined || bottom === undefined || options.anyLevel) return undefined;
+  return {
+    from: Math.max(1, bottom - options.levelBelow),
+    // Red quests too: ones anyone can pick up but that are far above the
+    // chapter, such as holiday quests.
+    to: top + options.redAbove - 1,
+    pickupBy: top + options.levelAbove,
+  };
+}
 
 export function availableQuests(
   guide: Guide,
@@ -275,20 +307,16 @@ export function availableQuests(
     guide.items.flatMap((item) => (item.type === "quest" && item.turnin && !state.turnedIn.has(item.quest) ? [item.quest] : [])),
   );
   const done = (id: number) => state.turnedIn.has(id);
+  const levels = levelWindow(state, options);
   const result: AvailableQuest[] = [];
   for (const quest of index.data.quests) {
     if (state.picked.has(quest.id) || state.turnedIn.has(quest.id)) continue;
     if (HIDDEN_QUESTS.has(quest.id) || unavailableReason(quest, guide.faction, profile)) continue;
     if (quest.repeatable && !options.repeatable) continue;
     if (quest.exclusiveTo?.some((id) => state.picked.has(id) || done(id))) continue;
-    const top = state.levelTo ?? state.levelFrom;
-    if (top !== undefined && quest.minLevel > top + options.levelAbove) continue;
-    // Red quests too: ones anyone can pick up but that are far above the
-    // chapter, such as holiday quests.
-    if (top !== undefined && quest.level >= top + RED_LEVELS) continue;
-    const bottom = state.levelFrom ?? state.levelTo;
-    if (bottom !== undefined && quest.level > 0 && quest.level < bottom - options.levelBelow) continue;
-    const needs = [...(quest.prereqAll ?? []), ...(guide.questPrereqs[quest.id] ?? [])].filter((id) => !done(id));
+    if (levels && (quest.minLevel > levels.pickupBy || quest.level > levels.to)) continue;
+    if (levels && quest.level > 0 && quest.level < levels.from) continue;
+    const needs = [...new Set([...(quest.prereqAll ?? []), ...(guide.questPrereqs[quest.id] ?? [])])].filter((id) => !done(id));
     const needsAny = quest.prereqAny && !quest.prereqAny.some(done) ? quest.prereqAny : [];
     let status: AvailableQuest["status"] = "ready";
     if (needs.some((id) => turnedInLater.has(id)) || (needsAny.length > 0 && needsAny.every((id) => turnedInLater.has(id)))) {
@@ -302,7 +330,7 @@ export function availableQuests(
       giver && state.coords && giver.mapID === state.coords.mapID
         ? Math.hypot(giver.x - state.coords.x, giver.y - state.coords.y)
         : undefined;
-    result.push({ quest, status, distance });
+    result.push({ quest, status, needs, needsAny, distance });
   }
   return result.sort(byLevel((a) => a.quest));
 }

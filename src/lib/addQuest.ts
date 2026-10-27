@@ -4,20 +4,10 @@
 import type { Quest } from "../data/types";
 import { CLASS_MASKS, masksOverlap } from "../data/masks";
 import type { Coords, Guide, QuestItem } from "./guide";
-import { insertItems, setQuestValue, type Position } from "./editor";
+import { insertItems, questsInGuide, setQuestValue, type Position } from "./editor";
 import { classesOf, giverPlaces, nearestCoords, type Profile, type QuestIndex } from "./questData";
 
 export type Phase = "pickup" | "objectives" | "turnin";
-
-// The common ways a quest's steps are laid out.
-export const STEP_SHAPES: { label: string; phases: Phase[] }[] = [
-  { label: "Pick up", phases: ["pickup"] },
-  { label: "Objectives", phases: ["objectives"] },
-  { label: "Turn in", phases: ["turnin"] },
-  { label: "Objectives + turn in", phases: ["objectives", "turnin"] },
-  { label: "Pick up + objectives", phases: ["pickup", "objectives"] },
-  { label: "Whole quest", phases: ["pickup", "objectives", "turnin"] },
-];
 
 // Fills in the guide's per-quest settings from the data, where it has none:
 // - where it's picked up (the game shows nothing until it's in the log), the
@@ -41,7 +31,7 @@ export function fillQuestSettings(guide: Guide, index: QuestIndex, quest: Quest,
     setQuestValue(guide, "questClasses", quest.id, only);
   }
   if (!guide.questPrereqs[quest.id]) {
-    const inGuide = new Set(guide.items.flatMap((item) => (item.type === "quest" ? [item.quest] : [])));
+    const inGuide = questsInGuide(guide);
     const anyInGuide = (quest.prereqAny ?? []).filter((id) => inGuide.has(id));
     const prereqs = [...(quest.prereqAll ?? []), ...(anyInGuide.length === 1 ? anyInGuide : [])];
     setQuestValue(guide, "questPrereqs", quest.id, prereqs.length > 0 ? prereqs : undefined);

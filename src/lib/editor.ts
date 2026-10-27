@@ -4,7 +4,7 @@
 // Each function changes the guide it's given, e.g. an immer draft.
 
 import { MAX_CHAPTER_LEVEL, MAX_NAME_LENGTH, emptyGuide, type Chapter, type Faction, type Guide, type GuideItem } from "./guide";
-import { fixBatches, newUid, sortItems } from "./guideString";
+import { fixBatches, newUid, nextId, sortItems, truncateBytes } from "./guideString";
 
 // An item before it has an id: it gets one, and its chapter, when inserted.
 export type NewItem = GuideItem extends infer T ? (T extends GuideItem ? Omit<T, "id" | "chapterId"> : never) : never;
@@ -15,19 +15,9 @@ export interface Position {
   index: number;
 }
 
-const encoder = new TextEncoder();
-
 // Trimmed and at most MAX_NAME_LENGTH bytes (the addon's limit).
 export function cleanName(name: string): string {
-  let clean = name.trim();
-  while (encoder.encode(clean).length > MAX_NAME_LENGTH) {
-    clean = [...clean].slice(0, -1).join("");
-  }
-  return clean;
-}
-
-function nextId(values: (number | undefined)[]): number {
-  return Math.max(0, ...values.map((v) => v ?? 0)) + 1;
+  return truncateBytes(name.trim(), MAX_NAME_LENGTH);
 }
 
 // A new guide with one chapter to put steps in.
@@ -151,6 +141,21 @@ export function updateItem(guide: Guide, itemId: number, patch: Partial<NewItem>
     } else {
       item[key] = value;
     }
+  }
+}
+
+// Ticks or unticks objective n (of the quest's `count`) on a step that does
+// objectives. Every one ticked is all of them (true), and the last one ticked
+// stays: a step that does objectives does at least one.
+export function toggleObjective(guide: Guide, itemId: number, n: number, count: number): void {
+  const item = getItem(guide, itemId);
+  if (item?.type !== "quest" || !item.objectives) {
+    return;
+  }
+  const chosen = Array.isArray(item.objectives) ? item.objectives : Array.from({ length: count }, (_, i) => i + 1);
+  const next = chosen.includes(n) ? chosen.filter((o) => o !== n) : [...chosen, n].sort((a, b) => a - b);
+  if (next.length > 0) {
+    item.objectives = next.length >= count ? true : next;
   }
 }
 

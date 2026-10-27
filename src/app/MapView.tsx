@@ -8,7 +8,7 @@ import { getItem, setQuestValue, updateItem } from "../lib/editor";
 import type { Coords, Guide, GuideItem } from "../lib/guide";
 import type { Located } from "../data/types";
 import { stateAt } from "../lib/analysis";
-import { giverPlaces, startingCoords, turnInPlaces, type Profile, type QuestIndex } from "../lib/questData";
+import { giverPlaces, round4, startingCoords, turnInPlaces, type Profile, type QuestIndex } from "../lib/questData";
 import { groupByPlace, guideRoute, objectivePlaces, routeOnMap, stepRanges, type PointKind, type RoutePoint } from "../lib/route";
 import { mapImageUrl, useMapArt, type MapArt } from "./maps";
 import { stepTitle } from "./Steps";
@@ -207,7 +207,6 @@ export function MapView({ guide, index, profile }: { guide: Guide; index: QuestI
       <LeafletMap
         map={shown}
         points={pointsHere}
-        allPoints={route}
         chapterRoute={chapterRoute}
         mapName={mapName}
         onSwitchMap={setMapId}
@@ -250,7 +249,6 @@ function Legend() {
 function LeafletMap({
   map,
   points,
-  allPoints,
   chapterRoute,
   mapName,
   onSwitchMap,
@@ -272,7 +270,6 @@ function LeafletMap({
   preview: { spots: Located[]; givers: Located[] } | undefined;
   map: MapArt;
   points: RoutePoint[];
-  allPoints: RoutePoint[];
   chapterRoute: RoutePoint[];
   mapName: (id: number) => string;
   onSwitchMap: (id: number) => void;
@@ -485,7 +482,7 @@ function LeafletMap({
       });
       marker.addTo(state.layers);
     }
-  }, [map, points, allPoints, chapterRoute, mapName, numbers, selectedId, selected, index, guide, here, preview]);
+  }, [map, points, chapterRoute, mapName, numbers, selectedId, selected, index, guide, here, preview]);
 
   // Keep the selected step in view as steps are added and picked.
   useEffect(() => {
@@ -498,7 +495,5 @@ function LeafletMap({
 
   return <div ref={container} className="leaflet-host" role="application" aria-label={`Map of ${map.name}`} />;
 }
-
-const round4 = (n: number) => Math.round(n * 10000) / 10000;
 
 const escape = (text: string) => text.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);

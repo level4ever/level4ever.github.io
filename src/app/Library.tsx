@@ -1,6 +1,7 @@
 // The guides saved in this browser.
 
 import { useEffect, useState } from "react";
+import { questsInGuide } from "../lib/editor";
 import { ExportDialog, ImportDialog, NewGuideDialog } from "./dialogs";
 import type { StoredGuide } from "./storage";
 import { useApp } from "./store";
@@ -79,7 +80,7 @@ function DeletedNotice() {
 
 function GuideCard({ stored, onExport }: { stored: StoredGuide; onExport: () => void }) {
   const { guide } = stored;
-  const quests = new Set(guide.items.flatMap((item) => (item.type === "quest" ? [item.quest] : []))).size;
+  const quests = questsInGuide(guide).size;
   const app = useApp.getState();
   return (
     <article className="guide-card">

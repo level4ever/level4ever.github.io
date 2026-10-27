@@ -1,6 +1,6 @@
 // One quest, with what it's about and buttons to add its steps.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Located, Quest } from "../data/types";
 import type { Phase } from "../lib/addQuest";
 import type { Faction } from "../lib/guide";
@@ -41,6 +41,14 @@ export function QuestCard({
   compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  // Gone from the list (e.g. just added) with no mouseleave or blur: stop
+  // showing it on the map.
+  useEffect(
+    () => () => {
+      if (useApp.getState().previewQuest === quest.id) useApp.getState().setPreview(undefined);
+    },
+    [quest.id],
+  );
   const classes = classesOf(quest.classes);
   const races = raceNames(quest.races, faction);
   const profession = quest.skill && (PROFESSIONS.find((p) => p.skill === quest.skill![0])?.name ?? `Skill ${quest.skill[0]}`);

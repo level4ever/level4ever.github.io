@@ -6,8 +6,9 @@ import { create } from "zustand";
 import type { QuestData } from "../data/types";
 import { copyGuide, newGuide } from "../lib/editor";
 import type { Faction, Guide } from "../lib/guide";
-import { importGuide } from "../lib/guideString";
+import { importGuide, newUid } from "../lib/guideString";
 import { guessProfile, indexQuestData, type Profile, type QuestIndex } from "../lib/questData";
+import { guideRoute } from "../lib/route";
 import { deleteGuide, loadGuides, saveGuide, type StoredGuide } from "./storage";
 
 // The zone filter's value for "where the guide's race starts", worked out
@@ -42,7 +43,8 @@ interface AppState {
   selectedItemId?: number; // the step shown in the step panel
   previewQuest?: number; // a quest being looked at in the side panel, shown on the map
   // The side panel's zone filter: a zone's name, or the race's starting zone
-  // (STARTING_ZONE), which a guide with no steps yet opens on.
+  // (STARTING_ZONE), which a guide with no steps yet opens on. Showing a
+  // chapter sets it to its first step's zone.
   zoneFilter?: string;
   findText: string; // the "Find quest" box: a quest ID or part of a name
   data: Partial<Record<Faction, DataState>>;
@@ -186,6 +188,11 @@ export const useApp = create<AppState>()((setState, get) => {
 
     async load() {
       const list = await loadGuides();
+      // Saved before every guide had a uid: it needs one to export.
+      for (const stored of list.filter((g) => !g.guide.uid)) {
+        stored.guide.uid = newUid();
+        persist(stored, true);
+      }
       const guides = Object.fromEntries(list.map((g) => [g.id, g]));
       setState({ guides, loaded: true });
       const last = recall();
@@ -205,8 +212,10 @@ export const useApp = create<AppState>()((setState, get) => {
       }
       // Always a new guide, never over one here (even one with the same uid,
       // which may have edits of its own). It keeps its uid, so its exports
-      // still update copies of it in game.
+      // still update copies of it in game. One without a uid (or with a bad
+      // one, dropped on import) gets a new one, as it can't export without.
       const { guide } = result;
+      guide.uid ??= newUid();
       const data = get().data[guide.faction];
       if (data?.status === "ready") {
         return { id: add(record(guide, guessProfile(guide, data.index))) };
@@ -321,7 +330,18 @@ export const useApp = create<AppState>()((setState, get) => {
       // Its first step selected (so the map goes there), with new steps still
       // going at its end.
       const first = itemId ?? stored?.guide.items.find((item) => item.chapterId === chapterId)?.id;
-      setState({ chapterId, selectedItemId: first, cursor: stored && endOfChapter(stored.guide, chapterId) });
+      // The quests offered start with the zone that step is in (as the map
+      // shows it); the filter is left as it was if there's none.
+      const data = stored && get().data[stored.guide.faction];
+      const index = data?.status === "ready" ? data.index : undefined;
+      const mapID = index && guideRoute(stored!.guide, index).find((point) => point.itemId === first)?.coords.mapID;
+      const zone = mapID === undefined ? undefined : index!.data.maps[mapID];
+      setState({
+        chapterId,
+        selectedItemId: first,
+        cursor: stored && endOfChapter(stored.guide, chapterId),
+        ...(zone ? { zoneFilter: zone } : {}),
+      });
     },
 
     select(itemId) {

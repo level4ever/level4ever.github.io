@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import type { Warning } from "../lib/analysis";
-import { addChapter, chapterItems, deleteChapter, moveChapter, moveItem } from "../lib/editor";
+import { addChapter, chapterItems, deleteChapter, moveChapter, moveItem, questsInGuide } from "../lib/editor";
 import type { Guide, GuideItem } from "../lib/guide";
 import type { QuestIndex } from "../lib/questData";
 import { useApp } from "./store";
@@ -18,8 +18,7 @@ export function foundQuests(guide: Guide, index: QuestIndex | undefined, text: s
   const term = text.trim().toLowerCase();
   if (!term) return undefined;
   if (/^\d+$/.test(term)) return new Set([Number(term)]);
-  const quests = new Set(guide.items.flatMap((item) => (item.type === "quest" ? [item.quest] : [])));
-  return new Set([...quests].filter((id) => index?.byId.get(id)?.name.toLowerCase().includes(term)));
+  return new Set([...questsInGuide(guide)].filter((id) => index?.byId.get(id)?.name.toLowerCase().includes(term)));
 }
 
 export const isFound = (item: GuideItem, found: Set<number>) => item.type === "quest" && found.has(item.quest);

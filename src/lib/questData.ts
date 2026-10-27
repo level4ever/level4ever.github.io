@@ -128,7 +128,12 @@ export function startingZone(index: QuestIndex, profile: Profile): string | unde
 // character can't or shouldn't do.
 export const HIDDEN_QUESTS = new Map<number, string>([
   [5843, "Collector's Edition only"], // Welcome!
+  [8744, "Winter Veil holiday"], // A Carefully Wrapped Present
+  [8767, "Winter Veil holiday"], // A Gently Shaken Gift
+  [8788, "Winter Veil holiday"], // A Gently Shaken Gift
   [8828, "Winter Veil holiday"], // Winter's Presents
+  [78307, "Season of Discovery only"], // The Horn of Xelthos
+  [80001, "Optional sleeping bag step, no rewards"], // Rekindle
 ]);
 
 // The zone a quest is picked up in, by name: the map its quest giver is on,
@@ -209,4 +214,5 @@ export function nearestCoords(placesList: Located[], near?: Coords): Coords | un
   return best?.coords;
 }
 
-const round4 = (n: number) => Math.round(n * 10000) / 10000;
+// To 4 decimal places, as the addon's coords are kept.
+export const round4 = (n: number) => Math.round(n * 10000) / 10000;

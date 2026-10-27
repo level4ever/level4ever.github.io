@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { App } from "../src/app/App";
-import { loadGuides } from "../src/app/storage";
+import { loadGuides, saveGuide } from "../src/app/storage";
 import { useApp } from "../src/app/store";
 import { insertItems, newGuide } from "../src/lib/editor";
 import { exportGuide, importGuide } from "../src/lib/guideString";
@@ -347,5 +347,100 @@ describe("the guide builder", () => {
     // Saved to IndexedDB (writes are queued briefly).
     await act(() => new Promise((resolve) => setTimeout(resolve, 400)));
     await waitFor(async () => expect((await loadGuides()).map((g) => g.guide.name)).toEqual(["Horde 12-30"]));
+  });
+
+  test("a guide imported without a usable uid gets one, so it exports", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("button", { name: "Start a new guide" });
+    // The addon's import drops a uid that isn't hex; so does the site's.
+    const text = exportGuide({ ...newGuide("No uid", "Horde"), uid: "not hex" });
+    expect(importGuide(text).guide?.uid).toBeUndefined();
+    const result = useApp.getState().importString(text);
+    const uid = Object.values(useApp.getState().guides)[0]!.guide.uid;
+    expect(uid).toMatch(/^[0-9a-f]{12}$/);
+    act(() => useApp.getState().open("id" in result ? result.id : undefined));
+    await user.click(await screen.findByRole("button", { name: "Export string" }));
+    const exported = (screen.getByLabelText("Export string") as HTMLTextAreaElement).value;
+    expect(importGuide(exported).guide?.uid).toBe(uid);
+  });
+
+  test("a guide saved without a uid gets one when the guides load", async () => {
+    const { uid: _, ...guide } = newGuide("Old", "Horde");
+    const now = new Date().toISOString();
+    await saveGuide({ id: "old", guide, profile: { races: [], professions: [] }, created: now, updated: now });
+    render(<App />);
+    await screen.findByRole("heading", { name: "Old" });
+    expect(useApp.getState().guides.old!.guide.uid).toMatch(/^[0-9a-f]{12}$/);
+    await waitFor(async () => expect((await loadGuides())[0]!.guide.uid).toBe(useApp.getState().guides.old!.guide.uid));
+  });
+
+  test("deleting the step being batched with ends batching, so clicks select steps again", async () => {
+    const user = await newOrcGuide();
+    for (const name of ["Your Place in the World", "Call of Earth", "Either Way"]) {
+      await user.click(within(card(name)).getByRole("button", { name: "Pick up" }));
+    }
+    const rows = () => steps().filter((li) => li.classList.contains("step"));
+    await user.click(within(rows()[0]!).getByTitle(/^Batch/));
+    expect(screen.getByRole("status")).toHaveTextContent(/Click steps to do them together/);
+    await user.click(within(rows()[0]!).getByTitle("Delete step"));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    await user.click(rows()[0]!); // Call of Earth, step 2
+    expect(useApp.getState().selectedItemId).toBe(2);
+    expect(rows()[0]).not.toHaveClass("batch-pick");
+  });
+
+  test("a quest added from the list stops being shown on the map", async () => {
+    const user = await newOrcGuide();
+    await user.hover(card("Your Place in the World"));
+    expect(useApp.getState().previewQuest).toBe(1);
+    // Picked up, it leaves "Can be picked up here" with no mouseleave.
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Pick up" }));
+    expect(useApp.getState().previewQuest).toBeUndefined();
+  });
+
+  test("an available quest's note names only the prerequisites still needed", async () => {
+    const user = await newOrcGuide();
+    // Call of Earth has none in the data; give it one in the guide.
+    act(() => useApp.getState().edit((g) => Object.assign(g.questPrereqs, { 3: [1] })));
+    expect(card("Call of Earth")).toHaveTextContent('Needs "Your Place in the World" (not in this guide)');
+    expect(card("Either Way")).toHaveTextContent('Needs one of "Your Place in the World" or "Lunar Elder" (not in this guide)');
+    // Once it's turned in, neither needs anything.
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Whole quest" }));
+    expect(card("Call of Earth")).not.toHaveTextContent(/Needs/);
+    expect(card("Either Way")).not.toHaveTextContent(/Needs/);
+  });
+
+  test("the row's objective buttons and the step settings' boxes tick objectives alike", async () => {
+    const user = await newOrcGuide();
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Whole quest" }));
+    await user.click(within(card("Cutting Teeth")).getByRole("button", { name: "Pick up + objectives" }));
+    const objectives = () => (useApp.getState().guides[useApp.getState().activeId!]!.guide.items[1] as { objectives?: unknown }).objectives;
+    const row = within(screen.getByRole("group", { name: "Objectives this step does" }));
+    await user.click(row.getByRole("button", { name: "1" }));
+    expect(objectives()).toEqual([2]);
+    await user.click(row.getByRole("button", { name: "2" })); // the last one stays
+    expect(objectives()).toEqual([2]);
+    // The same in the step's settings, and every one ticked is all of them.
+    await user.click(within(steps()[1]!).getByRole("button", { name: "Edit step" }));
+    await user.click(screen.getByLabelText(/^2\. /));
+    expect(objectives()).toEqual([2]);
+    await user.click(screen.getByLabelText(/^1\. /));
+    expect(objectives()).toBe(true);
+  });
+
+  test("clearing a coordinate box to type another doesn't move the point", async () => {
+    const user = await newOrcGuide();
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Pick up" }));
+    await user.click(within(steps()[0]!).getByRole("button", { name: "Edit step" }));
+    const pickup = () => useApp.getState().guides[useApp.getState().activeId!]!.guide.questCoords[1];
+    const x = screen.getByLabelText("X");
+    expect(x).toHaveValue(43.3);
+    await user.clear(x);
+    expect(pickup()).toEqual({ mapID: 1411, x: 0.4329, y: 0.6853 });
+    await user.type(x, "50");
+    expect(pickup()).toEqual({ mapID: 1411, x: 0.5, y: 0.6853 });
+    await user.tab();
+    expect(x).toHaveValue(50);
   });
 });

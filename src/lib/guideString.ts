@@ -113,7 +113,7 @@ const decoder = new TextDecoder();
 
 // The first maxBytes bytes of text as UTF-8, without splitting a character
 // (the addon cuts at the byte, which can leave half a character).
-function truncateBytes(text: string, maxBytes: number): string {
+export function truncateBytes(text: string, maxBytes: number): string {
   const bytes = encoder.encode(text);
   if (bytes.length <= maxBytes) {
     return text;
@@ -353,7 +353,8 @@ function sanitizeGuide(payload: LuaTable): Guide | undefined {
 // addon's Core.lua)
 ///////////////////////////////////////////////////////////////////////////
 
-function nextId(values: (number | undefined)[]): number {
+// One more than the highest id (or batch number) in use.
+export function nextId(values: (number | undefined)[]): number {
   return Math.max(0, ...values.map((v) => v ?? 0)) + 1;
 }
 

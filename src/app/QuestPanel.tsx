@@ -4,7 +4,17 @@
 import { useMemo, useState } from "react";
 import type { Quest } from "../data/types";
 import { addQuestStep, type Phase } from "../lib/addQuest";
-import { DEFAULT_AVAILABLE_OPTIONS, availableQuests, byLevel, questNames, stateAt, type AvailableQuest, type GuideState } from "../lib/analysis";
+import {
+  DEFAULT_AVAILABLE_OPTIONS,
+  availableQuests,
+  byLevel,
+  levelWindow,
+  questNames,
+  stateAt,
+  type AvailableOptions,
+  type AvailableQuest,
+  type GuideState,
+} from "../lib/analysis";
 import type { Guide } from "../lib/guide";
 import {
   HIDDEN_QUESTS,
@@ -40,11 +50,8 @@ export function QuestPanel({ guide, index, profile }: { guide: Guide; index: Que
   const chapter = guide.chapters.find((c) => c.id === position.chapterId);
   const level = state.levelTo ?? state.levelFrom;
 
-  const options = {
-    ...DEFAULT_AVAILABLE_OPTIONS,
-    locked: showLocked,
-    ...(allLevels ? { levelAbove: 100, levelBelow: 100 } : {}),
-  };
+  const options = { ...DEFAULT_AVAILABLE_OPTIONS, locked: showLocked, anyLevel: allLevels };
+  const levels = levelWindow(state, options);
   const unfiltered = useMemo(
     () => availableQuests(guide, index, profile, state, options),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -168,7 +175,6 @@ export function QuestPanel({ guide, index, profile }: { guide: Guide; index: Que
             <div className="filters">
               <select
                 className="input"
-                style={{ width: "auto" }}
                 aria-label="Zone"
                 value={zone ?? ""}
                 onChange={(event) => {
@@ -184,18 +190,45 @@ export function QuestPanel({ guide, index, profile }: { guide: Guide; index: Que
                   </option>
                 ))}
               </select>
-              <label>
-                <input type="checkbox" checked={allLevels} onChange={(e) => setAllLevels(e.target.checked)} />
-                Any level
-              </label>
-              <label>
-                <input type="checkbox" checked={showLocked} onChange={(e) => setShowLocked(e.target.checked)} />
-                Locked
-              </label>
+              <div className="chips">
+                <button
+                  className="chip small"
+                  aria-pressed={allLevels}
+                  disabled={level === undefined}
+                  title={
+                    level === undefined
+                      ? "This chapter has no level target, so every level shows already"
+                      : "Also show quests well above or below this level"
+                  }
+                  onClick={() => setAllLevels(!allLevels)}
+                >
+                  Any level
+                </button>
+                <button
+                  className="chip small"
+                  aria-pressed={showLocked}
+                  title="Also show quests that need one this guide turns in further on"
+                  onClick={() => setShowLocked(!showLocked)}
+                >
+                  Unlocked later in guide
+                </button>
+              </div>
+              <div className="muted small">
+                {levels ? (
+                  <span title={levelRule(options)}>
+                    Quests of level{" "}
+                    <strong className="level-range">
+                      {levels.from}–{levels.to}
+                    </strong>{" "}
+                    that can be picked up by level <strong className="level-range">{levels.pickupBy}</strong>.
+                  </span>
+                ) : level === undefined ? (
+                  "Every level shows: give chapters a level target to only see quests around it."
+                ) : (
+                  "Quests of every level."
+                )}
+              </div>
             </div>
-            {level === undefined && !allLevels && (
-              <div className="muted small">Give chapters a level target to only see quests around that level.</div>
-            )}
             <div className="quest-list">
               {available.slice(0, shown).map((a) => (
                 <QuestCard
@@ -228,6 +261,15 @@ function levelRange(from: number | undefined, to: number | undefined): string {
   return levels[0] === levels[levels.length - 1] ? String(levels[0]) : `${levels[0]}-${levels[levels.length - 1]}`;
 }
 
+// What the level range means, for its tooltip.
+function levelRule(options: AvailableOptions): string {
+  return (
+    `From ${options.levelBelow} levels under the chapter's level to ${options.redAbove - 1} over it ` +
+    `(red quests are left out), and no more than ${options.levelAbove} over it to pick up. ` +
+    `"Any level" shows the rest.`
+  );
+}
+
 type Action = { label: string; phases: Phase[]; primary?: boolean };
 
 // Each button adds one step, ticked as its marks show.
@@ -256,10 +298,10 @@ function searchNote(quest: Quest, state: GuideState): string | undefined {
 
 function availableNote(a: AvailableQuest, index: QuestIndex): string | undefined {
   if (a.status === "ready") return undefined;
-  const needs = questNames(
-    [...(a.quest.prereqAll ?? []), ...(a.quest.prereqAny ?? [])],
-    (id) => index.byId.get(id)?.name ?? `quest ${id}`,
-    ", ",
-  );
+  const name = (id: number) => index.byId.get(id)?.name ?? `quest ${id}`;
+  const needs = [
+    ...(a.needs.length > 0 ? [questNames(a.needs, name, ", ")] : []),
+    ...(a.needsAny.length > 0 ? [`one of ${questNames(a.needsAny, name)}`] : []),
+  ].join(" and ");
   return a.status === "locked" ? `Locked: needs ${needs}, turned in later` : `Needs ${needs} (not in this guide)`;
 }

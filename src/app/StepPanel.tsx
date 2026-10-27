@@ -2,19 +2,11 @@
 
 import { useState, type ReactNode } from "react";
 import type { Warning } from "../lib/analysis";
-import { deleteItem, getItem, setBatchedWithPrevious, setOptional, setQuestValue, updateItem } from "../lib/editor";
+import { deleteItem, getItem, setBatchedWithPrevious, setQuestValue, toggleObjective, updateItem } from "../lib/editor";
 import type { Coords, Guide, NoteItem, NoteKind, QuestItem } from "../lib/guide";
-import {
-  CLASSES,
-  giverPlaces,
-  nearestCoords,
-  objectiveText,
-  turnInPlaces,
-  type Profile,
-  type QuestIndex,
-} from "../lib/questData";
+import { CLASSES, giverPlaces, nearestCoords, objectiveText, turnInPlaces, type QuestIndex } from "../lib/questData";
 import { QuestDetails } from "./QuestCard";
-import { NOTE_KIND_LABELS, Ticks, stepTitle } from "./Steps";
+import { NOTE_KIND_LABELS, QuestOptions, Ticks, stepTitle } from "./Steps";
 import { useApp } from "./store";
 import { WarningList } from "./ui";
 
@@ -29,7 +21,6 @@ export function StepPanel({
 }: {
   guide: Guide;
   index: QuestIndex;
-  profile: Profile;
   itemId: number;
   warnings: Map<number, Warning[]>;
 }) {
@@ -122,10 +113,7 @@ function QuestStep({ guide, index, item, batch }: { guide: Guide; index: QuestIn
                   <input
                     type="checkbox"
                     checked={some.includes(i + 1)}
-                    onChange={(e) => {
-                      const next = e.target.checked ? [...some, i + 1].sort((a, b) => a - b) : some.filter((n) => n !== i + 1);
-                      update({ objectives: next.length > 0 ? next : true });
-                    }}
+                    onChange={() => app.edit((g) => toggleObjective(g, item.id, i + 1, objectives.length))}
                   />
                   {i + 1}. {objectiveText(index, objective)}
                 </label>
@@ -134,18 +122,7 @@ function QuestStep({ guide, index, item, batch }: { guide: Guide; index: QuestIn
         )}
         {quest ? <QuestDetails quest={quest} index={index} /> : <div className="notice">Quest {item.quest} isn't in the quest data.</div>}
         <div className="options" role="group" aria-label="Step options">
-          <label className="row" title="Worked on in the background until its next step">
-            <input type="checkbox" checked={!!item.ongoing} onChange={(e) => update({ ongoing: e.target.checked || undefined })} />
-            Ongoing
-          </label>
-          <label className="row" title="Fine to skip, e.g. an escort. Applies to every step for this quest.">
-            <input
-              type="checkbox"
-              checked={!!guide.optionalQuests[item.quest]}
-              onChange={(e) => app.edit((g) => setOptional(g, item.quest, e.target.checked))}
-            />
-            Optional
-          </label>
+          <QuestOptions guide={guide} item={item} />
           {batch}
         </div>
       </div>
@@ -321,6 +298,33 @@ function PrereqsField({ index, value, onChange }: { index: QuestIndex; value: nu
   );
 }
 
+const percent = (n: number) => String(Math.round(n * 1000) / 10);
+
+// A coordinate (0-1), typed as 0-100. What's typed is kept while it's being
+// edited; only a number changes the coordinate, so clearing the box to type
+// another doesn't move the point to 0.
+function PercentInput({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
+  const [draft, setDraft] = useState<string>();
+  return (
+    <input
+      className="input"
+      style={{ width: 64 }}
+      type="number"
+      step="0.1"
+      aria-label={label}
+      value={draft ?? percent(value)}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        const n = e.target.value.trim() === "" ? NaN : Number(e.target.value);
+        if (Number.isFinite(n)) {
+          onChange(Math.min(1, Math.max(0, n / 100)));
+        }
+      }}
+      onBlur={() => setDraft(undefined)}
+    />
+  );
+}
+
 // A map and a point on it, shown as 0-100 like the game's coordinates.
 function CoordsField({
   label,
@@ -342,8 +346,6 @@ function CoordsField({
     const next = { mapID: value?.mapID ?? suggestion?.mapID ?? Number(maps[0]![0]), x: value?.x ?? 0.5, y: value?.y ?? 0.5, ...patch };
     onChange(next, typing);
   };
-  const percent = (n: number | undefined) => (n === undefined ? "" : String(Math.round(n * 1000) / 10));
-  const fromPercent = (text: string) => Math.min(1, Math.max(0, Number(text) / 100));
   const differs = suggestion && (!value || value.mapID !== suggestion.mapID || Math.hypot(value.x - suggestion.x, value.y - suggestion.y) > 0.005);
 
   return (
@@ -365,24 +367,8 @@ function CoordsField({
               </option>
             ))}
           </select>
-          <input
-            className="input"
-            style={{ width: 64 }}
-            type="number"
-            step="0.1"
-            aria-label="X"
-            value={percent(value.x)}
-            onChange={(e) => set({ x: fromPercent(e.target.value) }, true)}
-          />
-          <input
-            className="input"
-            style={{ width: 64 }}
-            type="number"
-            step="0.1"
-            aria-label="Y"
-            value={percent(value.y)}
-            onChange={(e) => set({ y: fromPercent(e.target.value) }, true)}
-          />
+          <PercentInput label="X" value={value.x} onChange={(x) => set({ x }, true)} />
+          <PercentInput label="Y" value={value.y} onChange={(y) => set({ y }, true)} />
           <button className="icon-btn" title="Clear" onClick={() => onChange(undefined)}>
             ✕
           </button>
