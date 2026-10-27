@@ -102,6 +102,7 @@ export function QuestCard({
                 <PhaseIcon key={phase} phase={phase} />
               ))}
             </span>
+            <span className="action-label">{action.label}</span>
           </button>
         ))}
       </div>

@@ -39,6 +39,7 @@ export function QuestPanel({ guide, index, profile }: { guide: Guide; index: Que
   const [allLevels, setAllLevels] = useState(false);
   const [showLocked, setShowLocked] = useState(false);
   const [shown, setShown] = useState(PAGE);
+  const [inLogOpen, setInLogOpen] = useRemembered("level4ever:in-log-open", true);
 
   const position = cursorPosition(guide, cursor);
   const state = useMemo(() => {
@@ -144,9 +145,19 @@ export function QuestPanel({ guide, index, profile }: { guide: Guide; index: Que
         <>
           <div className="panel-section">
             <h3>
-              Picked up, not turned in yet <span className="muted">({inLog.length})</span>
+              <button
+                className="section-toggle"
+                aria-expanded={inLogOpen}
+                title={inLogOpen ? "Hide these, to see more quests to pick up" : "Show these"}
+                onClick={() => setInLogOpen(!inLogOpen)}
+              >
+                <span className="chevron" aria-hidden>
+                  ▸
+                </span>
+                Picked up, not turned in yet <span className="muted">({inLog.length})</span>
+              </button>
             </h3>
-            {inLog.length === 0 ? (
+            {!inLogOpen ? null : inLog.length === 0 ? (
               <div className="muted small">
                 Quests picked up before this point show here until they're turned in, to add their next step.
               </div>
@@ -256,6 +267,28 @@ export function QuestPanel({ guide, index, profile }: { guide: Guide; index: Que
       )}
     </div>
   );
+}
+
+// A yes/no the viewer chose, kept in this browser. Storage may be
+// unavailable (private windows); it's only a convenience.
+function useRemembered(key: string, initial: boolean): [boolean, (value: boolean) => void] {
+  const [value, setValue] = useState(() => {
+    try {
+      const saved = localStorage.getItem(key);
+      return saved === null ? initial : saved === "true";
+    } catch {
+      return initial;
+    }
+  });
+  const set = (next: boolean) => {
+    setValue(next);
+    try {
+      localStorage.setItem(key, String(next));
+    } catch {
+      // Kept for this visit only.
+    }
+  };
+  return [value, set];
 }
 
 function levelRange(from: number | undefined, to: number | undefined): string {

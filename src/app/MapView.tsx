@@ -190,8 +190,8 @@ export function MapView({ guide, index, profile }: { guide: Guide; index: QuestI
           ) : (
             <span className="muted">Select a step to see where it goes, or to set its place on the map.</span>
           )}
+          <Legend />
         </div>
-        <Legend />
         {elsewhere > 0 && (
           <span className="muted small">
             {elsewhere} of this chapter's {chapterRoute.length} stops are on other maps.

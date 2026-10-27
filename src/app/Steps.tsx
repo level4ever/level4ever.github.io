@@ -358,34 +358,37 @@ function StepRow({
         </div>
         <div className="step-end" onClick={(event) => event.stopPropagation()}>
           {item.type === "quest" && <Ticks item={item} />}
-          <button
-            className={`icon-btn batch-btn${item.batch !== undefined || batching === item.id ? " active" : ""}`}
-            aria-pressed={item.batch !== undefined || batching === item.id}
-            title={
-              batching === item.id
-                ? "Done batching"
-                : item.batch !== undefined
-                  ? "Take this out of its batch"
-                  : "Batch: then click the steps to do together with this one"
-            }
-            onClick={onBatch}
-          >
-            ⛓
-          </button>
-          <button
-            className="icon-btn"
-            title="Edit step: every setting, in the side panel"
-            aria-label="Edit step"
-            onClick={() => {
-              app.select(item.id);
-              onOpen();
-            }}
-          >
-            ✎
-          </button>
-          <button className="icon-btn" title="Delete step" onClick={() => app.edit((g) => deleteItem(g, item.id))}>
-            ✕
-          </button>
+          {/* Shown over the row's end on hover or focus, so names get the room. */}
+          <span className="step-actions">
+            <button
+              className={`icon-btn batch-btn${item.batch !== undefined || batching === item.id ? " active" : ""}`}
+              aria-pressed={item.batch !== undefined || batching === item.id}
+              title={
+                batching === item.id
+                  ? "Done batching"
+                  : item.batch !== undefined
+                    ? "Take this out of its batch"
+                    : "Batch: then click the steps to do together with this one"
+              }
+              onClick={onBatch}
+            >
+              ⛓
+            </button>
+            <button
+              className="icon-btn"
+              title="Edit step: every setting, in the side panel"
+              aria-label="Edit step"
+              onClick={() => {
+                app.select(item.id);
+                onOpen();
+              }}
+            >
+              ✎
+            </button>
+            <button className="icon-btn" title="Delete step" onClick={() => app.edit((g) => deleteItem(g, item.id))}>
+              ✕
+            </button>
+          </span>
         </div>
         {selected && item.type === "quest" && <QuickSettings guide={guide} item={item} index={index} />}
       </li>

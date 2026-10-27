@@ -13,7 +13,6 @@ import { StepPanel } from "./StepPanel";
 import { Steps } from "./Steps";
 import type { StoredGuide } from "./storage";
 import { useApp, useQuestIndex } from "./store";
-import { PhaseLegend } from "./ui";
 
 // Undo and redo for the open guide, with Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y
 // (Cmd on a Mac). In a text box, those keys undo its typing instead.
@@ -127,7 +126,6 @@ export function Editor({ stored }: { stored: StoredGuide }) {
               <h2>Add quests</h2>
             )}
           </div>
-          <PhaseLegend />
           {data?.status === "error" ? (
             <div className="panel-section">
               <div className="notice error">Couldn't load the quest data ({data.error}). Reload the page to try again.</div>

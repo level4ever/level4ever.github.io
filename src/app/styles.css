@@ -644,9 +644,39 @@ dialog.dialog::backdrop {
   color: var(--muted);
 }
 .step-end {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 4px;
+}
+.step-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+/* With a mouse, a step's batch, edit and delete buttons float over the end
+   of its row while it's hovered or focused, so names and warnings get the
+   width. Touch screens keep them in the row. */
+@media (hover: hover) {
+  .step-actions {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 4px);
+    padding: 2px 4px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--raised);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    transform: translateY(-50%);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .step:hover .step-actions,
+  .step:focus-within .step-actions,
+  .step.batch-anchor .step-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 .ticks {
   display: inline-flex;
@@ -772,11 +802,38 @@ dialog.dialog::backdrop {
   text-transform: uppercase;
   color: var(--muted);
 }
+/* A section heading that shows or hides the section. */
+.section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.section-toggle .chevron {
+  transition: transform 0.15s;
+}
+.section-toggle[aria-expanded="true"] .chevron {
+  transform: rotate(90deg);
+}
 .quest-list {
   display: grid;
   gap: 6px;
 }
+/* A wide side panel lists quests two to a row. */
+@container side (min-width: 760px) {
+  .quest-list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
 .quest-card {
+  container-type: inline-size;
   display: grid;
   gap: 4px;
   padding: 8px 10px;
@@ -799,6 +856,15 @@ dialog.dialog::backdrop {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+/* The add buttons say what they add once the card has room for it. */
+.action-label {
+  display: none;
+}
+@container (min-width: 380px) {
+  .quest-card .action-label {
+    display: inline;
+  }
 }
 .tags {
   display: flex;
@@ -862,8 +928,10 @@ dialog.dialog::backdrop {
 }
 
 /* Map: always beside the steps */
+/* The map and Add quests share what's left: the map's art is letterboxed in
+   a wide column, so it gains little past its share. */
 .editor {
-  grid-template-columns: 200px minmax(320px, 400px) minmax(380px, 1fr) minmax(320px, 380px);
+  grid-template-columns: 200px minmax(320px, 400px) minmax(380px, 1.2fr) minmax(360px, 1fr);
   grid-template-areas: "chapters steps map side";
 }
 .editor > nav.column {
@@ -877,6 +945,7 @@ dialog.dialog::backdrop {
 }
 .side-column {
   grid-area: side;
+  container: side / inline-size;
 }
 /* Leaflet places markers with transform, so the pulse is on an inner ring. */
 .here-marker::after {
@@ -938,6 +1007,7 @@ dialog.dialog::backdrop {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 12px;
+  margin-left: auto; /* at the end of the "Set on the map" row */
   color: var(--muted);
 }
 .leaflet-host {

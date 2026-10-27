@@ -502,4 +502,36 @@ describe("the guide builder", () => {
     await user.click(anyLevel);
     expect(listed("Lunar Elder")).toBe(false);
   });
+
+  test("the picked-up list folds away, and stays as the viewer left it", async () => {
+    const user = await newOrcGuide();
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Pick up" }));
+    const toggle = () => screen.getByRole("button", { name: /Picked up, not turned in yet \(1\)/ });
+    const inLogCards = () => screen.queryAllByRole("button", { name: "Objectives + turn in" });
+    expect(toggle()).toHaveAttribute("aria-expanded", "true");
+    expect(inLogCards()).toHaveLength(1);
+
+    await user.click(toggle());
+    expect(toggle()).toHaveAttribute("aria-expanded", "false");
+    expect(inLogCards()).toHaveLength(0);
+    // Still folded after the step settings and back, and next visit.
+    await user.dblClick(steps()[0]!);
+    await user.click(screen.getByRole("button", { name: "← Add quests" }));
+    expect(toggle()).toHaveAttribute("aria-expanded", "false");
+    expect(localStorage.getItem("level4ever:in-log-open")).toBe("false");
+
+    await user.click(toggle());
+    expect(inLogCards()).toHaveLength(1);
+  });
+
+  test("the marks' key shows once, and the add buttons say what they add", async () => {
+    await newOrcGuide();
+    expect(screen.getAllByRole("note", { name: "What the marks mean" })).toHaveLength(1);
+    const buttons = within(card("Your Place in the World")).getAllByRole("button", { name: /Pick up|Whole quest/ });
+    expect(buttons.map((b) => b.querySelector(".action-label")?.textContent)).toEqual([
+      "Pick up",
+      "Pick up + objectives",
+      "Whole quest",
+    ]);
+  });
 });
