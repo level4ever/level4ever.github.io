@@ -180,6 +180,10 @@ describe("the guide builder", () => {
     await user.click(within(steps()[0]!).getByRole("button", { name: "Edit step" }));
     expect(screen.getByText("Quest 1 in this guide")).toBeInTheDocument();
     expect(useApp.getState().selectedItemId).toBe(1);
+    // One class setting, the quest's, unless the step already has its own.
+    expect(screen.getAllByText(/^Only for a class/)).toHaveLength(1);
+    act(() => useApp.getState().edit((g) => Object.assign(g.items[0]!, { class: "PALADIN" })));
+    expect(screen.getByText("Only for a class (this step only)")).toBeInTheDocument();
   });
 
   test("undo and redo, by button and keyboard", async () => {

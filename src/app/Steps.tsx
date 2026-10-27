@@ -24,7 +24,7 @@ import type { Guide, GuideItem, NoteKind, QuestItem } from "../lib/guide";
 import { className, objectiveText, type Profile, type QuestIndex } from "../lib/questData";
 import { DRAG_TYPE, foundQuests, isFound } from "./Chapters";
 import { cursorPosition, useApp } from "./store";
-import { PHASE_LABELS, PhaseIcon, SeverityIcon, worst } from "./ui";
+import { PHASE_LABELS, PhaseIcon, PhaseLegend, SeverityIcon, worst } from "./ui";
 
 export const NOTE_KIND_LABELS: Record<NoteKind | "note", string> = {
   note: "Note",
@@ -156,6 +156,7 @@ export function Steps({
           </button>
         ))}
       </div>
+      <PhaseLegend />
       {batching !== undefined && getItem(guide, batching) && (
         <div className="batch-banner" role="status">
           <span>
@@ -381,7 +382,7 @@ function StepRow({
             ✕
           </button>
         </div>
-        {selected && item.type === "quest" && <QuickSettings guide={guide} item={item} index={index} onOpen={onOpen} />}
+        {selected && item.type === "quest" && <QuickSettings guide={guide} item={item} index={index} />}
       </li>
       {marker && <InsertMarker />}
     </>
@@ -429,7 +430,7 @@ export function Ticks({ item }: { item: QuestItem }) {
 
 // The selected quest step's everyday settings, on its row; the rest are in
 // the side panel.
-function QuickSettings({ guide, item, index, onOpen }: { guide: Guide; item: QuestItem; index: QuestIndex | undefined; onOpen: () => void }) {
+function QuickSettings({ guide, item, index }: { guide: Guide; item: QuestItem; index: QuestIndex | undefined }) {
   const app = useApp.getState();
   const objectives = index?.byId.get(item.quest)?.objectives ?? [];
   const all = objectives.map((_, i) => i + 1);
@@ -472,9 +473,6 @@ function QuickSettings({ guide, item, index, onOpen }: { guide: Guide; item: Que
         />
         Optional
       </label>
-      <button className="btn ghost small" onClick={onOpen}>
-        More settings →
-      </button>
     </div>
   );
 }

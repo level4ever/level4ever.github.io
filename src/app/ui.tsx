@@ -88,6 +88,22 @@ export function PhaseIcon({ phase }: { phase: Phase }) {
   );
 }
 
+// A key to the marks, drawn like the steps' toggles.
+export function PhaseLegend() {
+  return (
+    <div className="phase-legend" role="note" aria-label="What the marks mean">
+      {(["pickup", "objectives", "turnin"] as const).map((phase) => (
+        <span key={phase}>
+          <span className="tick">
+            <PhaseIcon phase={phase} />
+          </span>
+          {PHASE_LABELS[phase]}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 const SEVERITY_ICON: Record<Severity, string> = { error: "⛔", warning: "⚠", info: "ℹ" };
 
 export function worst(warnings: Warning[] | undefined): Severity | undefined {

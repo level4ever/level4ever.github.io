@@ -85,6 +85,8 @@ export function QuestCard({
           <button
             key={action.label}
             className={`btn small${action.primary ? " primary" : ""}`}
+            aria-label={action.label}
+            title={`Add a step: ${action.label.toLowerCase()}`}
             onClick={() => onAdd(action.phases)}
           >
             <span className="phase-icons">
@@ -92,7 +94,6 @@ export function QuestCard({
                 <PhaseIcon key={phase} phase={phase} />
               ))}
             </span>
-            {action.label}
           </button>
         ))}
       </div>
@@ -113,7 +114,12 @@ export function QuestDetails({ quest, index }: { quest: Quest; index: QuestIndex
   const items = (quest.startItems ?? []).map((id) => index.data.items[id]?.name ?? `item ${id}`);
   return (
     <div className="details">
-      {quest.text && <div>{quest.text.join(" ")}</div>}
+      {quest.text && (
+        <div>
+          <strong>Description:</strong>
+          <div>{quest.text.join(" ")}</div>
+        </div>
+      )}
       {(givers.length > 0 || items.length > 0) && (
         <div>
           <strong>Starts:</strong> {[...givers.map((p) => placeText(index, p)), ...items.map((i) => `${i} (item)`)].join("; ")}

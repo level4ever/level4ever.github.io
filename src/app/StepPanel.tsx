@@ -1,6 +1,6 @@
 // Everything about the selected step, and its quest's settings in this guide.
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { Warning } from "../lib/analysis";
 import { deleteItem, getItem, setBatchedWithPrevious, setOptional, setQuestValue, updateItem } from "../lib/editor";
 import type { Coords, Guide, NoteItem, NoteKind, QuestItem } from "../lib/guide";
@@ -42,6 +42,24 @@ export function StepPanel({
   const previous = guide.items[position - 1];
   const canBatch = previous?.chapterId === item.chapterId;
   const list = warnings.get(item.id);
+  // A quest's class is set on the quest, for all its steps. A quest step's
+  // own class only shows where one is already set, so it can be cleared.
+  const stepClass = item.type === "note" || item.class !== undefined;
+
+  const batch = (
+    <label
+      className="row"
+      title="Done together with the step above: every pick-up, then every objective, then every turn-in. The ⛓ button on a step batches any steps in its chapter."
+    >
+      <input
+        type="checkbox"
+        disabled={!canBatch && item.batch === undefined}
+        checked={item.batch !== undefined && previous?.batch === item.batch}
+        onChange={(event) => app.edit((g) => setBatchedWithPrevious(g, item.id, event.target.checked))}
+      />
+      Batch with step above
+    </label>
+  );
 
   return (
     <div className="scroll">
@@ -51,30 +69,23 @@ export function StepPanel({
         {list && <WarningList warnings={list} />}
       </div>
       {item.type === "quest" ? (
-        <QuestStep guide={guide} index={index} item={item} />
+        <QuestStep guide={guide} index={index} item={item} batch={batch} />
       ) : (
         <NoteStep index={index} item={item} />
       )}
       <div className="panel-section">
-        <h3>This step</h3>
-        <label className="field">
-          <span>Only for a class</span>
-          <ClassSelect
-            value={item.class}
-            onChange={(cls) => app.edit((g) => updateItem(g, item.id, { class: cls }))}
-            empty="Every class"
-          />
-        </label>
-        <label className="row">
-          <input
-            type="checkbox"
-            disabled={!canBatch && item.batch === undefined}
-            checked={item.batch !== undefined && previous?.batch === item.batch}
-            onChange={(event) => app.edit((g) => setBatchedWithPrevious(g, item.id, event.target.checked))}
-          />
-          Batch with the step above (done together: every pick-up, then every objective, then every turn-in). The ⛓
-          button on a step batches any steps in its chapter.
-        </label>
+        {stepClass && <h3>This step</h3>}
+        {stepClass && (
+          <label className="field">
+            <span>{item.type === "quest" ? "Only for a class (this step only)" : "Only for a class"}</span>
+            <ClassSelect
+              value={item.class}
+              onChange={(cls) => app.edit((g) => updateItem(g, item.id, { class: cls }))}
+              empty="Every class"
+            />
+          </label>
+        )}
+        {item.type === "note" && batch}
         <div className="row">
           <button className="btn danger" onClick={() => app.edit((g) => deleteItem(g, item.id))}>
             Delete step
@@ -85,7 +96,7 @@ export function StepPanel({
   );
 }
 
-function QuestStep({ guide, index, item }: { guide: Guide; index: QuestIndex; item: QuestItem }) {
+function QuestStep({ guide, index, item, batch }: { guide: Guide; index: QuestIndex; item: QuestItem; batch: ReactNode }) {
   const app = useApp.getState();
   const quest = index.byId.get(item.quest);
   const objectives = quest?.objectives ?? [];
@@ -97,10 +108,6 @@ function QuestStep({ guide, index, item }: { guide: Guide; index: QuestIndex; it
       <div className="panel-section">
         <div className="row">
           <Ticks item={item} />
-          <label className="row small">
-            <input type="checkbox" checked={!!item.ongoing} onChange={(e) => update({ ongoing: e.target.checked || undefined })} />
-            Ongoing (worked on in the background until its next step)
-          </label>
         </div>
         {item.objectives && objectives.length > 1 && (
           <div className="field">
@@ -126,18 +133,25 @@ function QuestStep({ guide, index, item }: { guide: Guide; index: QuestIndex; it
           </div>
         )}
         {quest ? <QuestDetails quest={quest} index={index} /> : <div className="notice">Quest {item.quest} isn't in the quest data.</div>}
+        <div className="options" role="group" aria-label="Step options">
+          <label className="row" title="Worked on in the background until its next step">
+            <input type="checkbox" checked={!!item.ongoing} onChange={(e) => update({ ongoing: e.target.checked || undefined })} />
+            Ongoing
+          </label>
+          <label className="row" title="Fine to skip, e.g. an escort. Applies to every step for this quest.">
+            <input
+              type="checkbox"
+              checked={!!guide.optionalQuests[item.quest]}
+              onChange={(e) => app.edit((g) => setOptional(g, item.quest, e.target.checked))}
+            />
+            Optional
+          </label>
+          {batch}
+        </div>
       </div>
       <div className="panel-section">
         <h3>Quest {item.quest} in this guide</h3>
         <span className="muted small">These apply to every step for this quest.</span>
-        <label className="row">
-          <input
-            type="checkbox"
-            checked={!!guide.optionalQuests[item.quest]}
-            onChange={(e) => app.edit((g) => setOptional(g, item.quest, e.target.checked))}
-          />
-          Optional (fine to skip, e.g. an escort)
-        </label>
         <label className="field">
           <span>Only for a class</span>
           <ClassSelect
