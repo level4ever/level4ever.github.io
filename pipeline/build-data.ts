@@ -18,7 +18,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { FACTIONS, questieCredit } from "../src/data/types";
-import { checkMasks, transform, type Dump } from "./transform";
+import { checkContract, checkMasks, transform, type Dump } from "./transform";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const QUESTIEDB_REPO = "https://github.com/Questie/QuestieDB.git";
@@ -81,6 +81,7 @@ for (const faction of FACTIONS) {
   const dumpPath = join(cache, `questiedb-${faction.toLowerCase()}.json`);
   run(lua, [join(ROOT, "pipeline", "questiedb-dump.lua"), faction, dumpPath], checkout);
   const dump: Dump = JSON.parse(readFileSync(dumpPath, "utf8"));
+  checkContract(dump);
   checkMasks(dump);
   const data = transform(dump, generated, commit);
 

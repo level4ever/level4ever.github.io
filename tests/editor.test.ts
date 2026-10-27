@@ -5,6 +5,7 @@ import {
   addChapter,
   batchItems,
   cleanName,
+  cleanNoteText,
   copyGuide,
   deleteChapter,
   deleteItem,
@@ -50,6 +51,13 @@ describe("editing a guide", () => {
     expect(new TextEncoder().encode(cleanName("✓".repeat(30))).length).toBe(60);
     expect(cleanName("é".repeat(40))).toBe("é".repeat(30));
     expect(cleanName("  Valley  ")).toBe("Valley");
+  });
+
+  test("note text is cut at the addon's 255 bytes, whole characters only; empty is none", () => {
+    expect(cleanNoteText("")).toBeUndefined();
+    expect(cleanNoteText(" Hearth to Razor Hill ")).toBe(" Hearth to Razor Hill "); // kept as typed
+    expect(cleanNoteText("é".repeat(200))).toBe("é".repeat(127)); // 254 bytes: half an é won't fit
+    expect(new TextEncoder().encode(cleanNoteText("✓".repeat(100))!).length).toBe(255);
   });
 
   test("the quests a guide has steps for", () => {

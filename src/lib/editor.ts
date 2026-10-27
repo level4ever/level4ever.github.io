@@ -3,7 +3,7 @@
 // one chapter (see Chapters, Items and Batches in the addon's Core.lua).
 // Each function changes the guide it's given, e.g. an immer draft.
 
-import { MAX_CHAPTER_LEVEL, MAX_NAME_LENGTH, emptyGuide, type Chapter, type Faction, type Guide, type GuideItem } from "./guide";
+import { MAX_CHAPTER_LEVEL, MAX_NAME_LENGTH, MAX_TEXT_LENGTH, emptyGuide, type Chapter, type Faction, type Guide, type GuideItem } from "./guide";
 import { fixBatches, newUid, nextId, sortItems, truncateBytes } from "./guideString";
 
 // An item before it has an id: it gets one, and its chapter, when inserted.
@@ -18,6 +18,12 @@ export interface Position {
 // Trimmed and at most MAX_NAME_LENGTH bytes (the addon's limit).
 export function cleanName(name: string): string {
   return truncateBytes(name.trim(), MAX_NAME_LENGTH);
+}
+
+// A note's text, at most MAX_TEXT_LENGTH bytes (the addon cuts it there on
+// import); undefined when empty.
+export function cleanNoteText(text: string): string | undefined {
+  return text === "" ? undefined : truncateBytes(text, MAX_TEXT_LENGTH);
 }
 
 // A new guide with one chapter to put steps in.

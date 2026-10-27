@@ -443,4 +443,63 @@ describe("the guide builder", () => {
     await user.tab();
     expect(x).toHaveValue(50);
   });
+
+  test("a note's text is kept to what the addon imports, so it reads the same in game", async () => {
+    const user = await newOrcGuide();
+    await user.click(screen.getByRole("button", { name: "+ Note" }));
+    const text = screen.getByLabelText("Text");
+    await user.click(text);
+    await user.paste("é".repeat(200)); // 400 bytes; the addon keeps 255
+    const guide = () => useApp.getState().guides[useApp.getState().activeId!]!.guide;
+    expect(guide().items[0]).toMatchObject({ type: "note", text: "é".repeat(127) });
+    expect(text).toHaveValue("é".repeat(127));
+    expect(importGuide(exportGuide(guide())).guide).toEqual(guide());
+  });
+
+  test("changing who a guide is for is one step to undo, faction and races together", async () => {
+    const user = await newOrcGuide();
+    const stored = () => useApp.getState().guides[useApp.getState().activeId!]!;
+    await user.click(screen.getByTitle("Who this guide is for"));
+    const dialog = screen.getByRole("dialog", { name: "Who this guide is for" });
+    await user.click(within(dialog).getByRole("button", { name: "Alliance" }));
+    await user.click(within(dialog).getByRole("button", { name: "Human" }));
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    expect(stored().guide.faction).toBe("Alliance");
+    expect(stored().profile.races).toEqual([1]);
+    expect(useApp.getState().history.past).toHaveLength(1);
+
+    await user.click(screen.getByRole("button", { name: /Undo/ }));
+    expect(stored().guide.faction).toBe("Horde");
+    expect(stored().profile.races).toEqual([2]); // Orc, not the Alliance's Human
+    await user.click(screen.getByRole("button", { name: /Redo/ }));
+    expect(stored().guide.faction).toBe("Alliance");
+    expect(stored().profile.races).toEqual([1]);
+
+    // Saving with nothing changed adds nothing to undo.
+    await user.click(screen.getByTitle("Who this guide is for"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(useApp.getState().history.past).toHaveLength(1);
+  });
+
+  test("the level and unlocked-later filters each change the list, on and off", async () => {
+    const user = await newOrcGuide();
+    await user.click(within(card("Your Place in the World")).getByRole("button", { name: "Whole quest" }));
+    // New steps before that one: Cutting Teeth needs it, turned in later.
+    await user.click(screen.getByRole("button", { name: "Put new steps at the start of this chapter" }));
+    await user.type(screen.getByRole("spinbutton", { name: /to level/ }), "3");
+    const listed = (name: string) => [...document.querySelectorAll(".quest-card .name")].some((el) => el.textContent === name);
+    expect(listed("Cutting Teeth")).toBe(false);
+    expect(listed("Lunar Elder")).toBe(false); // level 60
+    const locked = screen.getByRole("button", { name: "Unlocked later in guide" });
+    const anyLevel = screen.getByRole("button", { name: "Any level" });
+    await user.click(locked);
+    expect(listed("Cutting Teeth")).toBe(true);
+    await user.click(anyLevel);
+    expect(listed("Lunar Elder")).toBe(true);
+    await user.click(locked);
+    expect(listed("Cutting Teeth")).toBe(false);
+    expect(listed("Lunar Elder")).toBe(true);
+    await user.click(anyLevel);
+    expect(listed("Lunar Elder")).toBe(false);
+  });
 });

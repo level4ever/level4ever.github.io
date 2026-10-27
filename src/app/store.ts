@@ -20,12 +20,18 @@ export type Cursor = { itemId: number } | { chapterId: number };
 
 type DataState = { status: "loading" } | { status: "ready"; index: QuestIndex } | { status: "error"; error: string };
 
+// A guide and who it's for, as undo puts them back.
+interface Version {
+  guide: Guide;
+  profile: Profile;
+}
+
 // The open guide's earlier and undone versions. `key` and `time` belong to
 // the last edit: a run of edits with the same key (typing in one field) is
 // one step to undo.
 interface History {
-  past: Guide[];
-  future: Guide[];
+  past: Version[];
+  future: Version[];
   key?: string;
   time?: number;
 }
@@ -64,7 +70,9 @@ interface AppState {
   edit(change: (guide: Guide) => void, coalesce?: string): void;
   undo(): void;
   redo(): void;
-  setProfile(profile: Profile): void;
+  // Who the guide is for. A new faction goes with it, as one step to undo,
+  // so the two never disagree.
+  setProfile(profile: Profile, faction?: Faction): void;
   // `itemId` picks the step to select, instead of the chapter's first.
   showChapter(chapterId: number, itemId?: number): void;
   select(itemId: number | undefined): void;
@@ -153,8 +161,8 @@ export const useApp = create<AppState>()((setState, get) => {
 
   // Puts a new version of the open guide in place and keeps the view on
   // things that still exist in it.
-  const setGuide = (stored: StoredGuide, guide: Guide) => {
-    const updated = { ...stored, guide, updated: new Date().toISOString() };
+  const setVersion = (stored: StoredGuide, { guide, profile }: Version) => {
+    const updated = { ...stored, guide, profile, updated: new Date().toISOString() };
     setState((s) => ({ guides: { ...s.guides, [updated.id]: updated } }));
     persist(updated);
     // A faction change needs that faction's data.
@@ -177,6 +185,23 @@ export const useApp = create<AppState>()((setState, get) => {
   const active = () => {
     const { activeId, guides } = get();
     return activeId ? guides[activeId] : undefined;
+  };
+
+  // A change to the open guide, keeping the version before it to undo.
+  const commit = (stored: StoredGuide, next: Version, coalesce?: string) => {
+    const { history } = get();
+    const now = Date.now();
+    const sameRun = coalesce !== undefined && history.key === coalesce && now - (history.time ?? 0) < COALESCE_MS;
+    const before = { guide: stored.guide, profile: stored.profile };
+    setState({
+      history: {
+        past: sameRun ? history.past : [...history.past, before].slice(-HISTORY_LIMIT),
+        future: [],
+        key: coalesce,
+        time: now,
+      },
+    });
+    setVersion(stored, next);
   };
 
   return {
@@ -279,21 +304,9 @@ export const useApp = create<AppState>()((setState, get) => {
       const guide = produce(stored.guide, (draft) => {
         change(draft);
       });
-      if (guide === stored.guide) {
-        return;
+      if (guide !== stored.guide) {
+        commit(stored, { guide, profile: stored.profile }, coalesce);
       }
-      const { history } = get();
-      const now = Date.now();
-      const sameRun = coalesce !== undefined && history.key === coalesce && now - (history.time ?? 0) < COALESCE_MS;
-      setState({
-        history: {
-          past: sameRun ? history.past : [...history.past, stored.guide].slice(-HISTORY_LIMIT),
-          future: [],
-          key: coalesce,
-          time: now,
-        },
-      });
-      setGuide(stored, guide);
     },
 
     undo() {
@@ -301,8 +314,8 @@ export const useApp = create<AppState>()((setState, get) => {
       const { past, future } = get().history;
       const previous = past[past.length - 1];
       if (stored && previous) {
-        setState({ history: { past: past.slice(0, -1), future: [stored.guide, ...future] } });
-        setGuide(stored, previous);
+        setState({ history: { past: past.slice(0, -1), future: [{ guide: stored.guide, profile: stored.profile }, ...future] } });
+        setVersion(stored, previous);
       }
     },
 
@@ -311,17 +324,24 @@ export const useApp = create<AppState>()((setState, get) => {
       const { past, future } = get().history;
       const next = future[0];
       if (stored && next) {
-        setState({ history: { past: [...past, stored.guide], future: future.slice(1) } });
-        setGuide(stored, next);
+        setState({ history: { past: [...past, { guide: stored.guide, profile: stored.profile }], future: future.slice(1) } });
+        setVersion(stored, next);
       }
     },
 
-    setProfile(profile) {
+    setProfile(profile, faction) {
       const stored = active();
-      if (stored) {
-        const updated = { ...stored, profile, updated: new Date().toISOString() };
-        setState((s) => ({ guides: { ...s.guides, [updated.id]: updated } }));
-        persist(updated);
+      if (!stored) {
+        return;
+      }
+      const guide =
+        faction === undefined || faction === stored.guide.faction
+          ? stored.guide
+          : produce(stored.guide, (draft) => {
+              draft.faction = faction;
+            });
+      if (guide !== stored.guide || JSON.stringify(profile) !== JSON.stringify(stored.profile)) {
+        commit(stored, { guide, profile });
       }
     },
 

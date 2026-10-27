@@ -28,7 +28,7 @@ python tools/maps/extract.py       # re-extracts public/maps/ from your WoW Fore
 
 ## The guide builder
 
-- **Undo:** every change to a guide can be undone and redone (buttons, Ctrl+Z, Ctrl+Shift+Z or Ctrl+Y;
+- **Undo:** every change to a guide, and to who it's for, can be undone and redone (buttons, Ctrl+Z, Ctrl+Shift+Z or Ctrl+Y;
   in a text box those keys undo its typing). A run of typing in one field is one step. Deleting a
   guide shows an Undo notice instead of asking first. Edits are saved after a short pause, and at
   once when the page is hidden or closed.

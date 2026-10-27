@@ -30,6 +30,20 @@ export interface Dump {
   objectiveFirst: Record<string, Id[]>;
 }
 
+// The version of QuestieDB's data contract (config.contractVersion) that
+// transform reads. The site is built from QuestieDB's latest master, so a new
+// contract, which may reshape the data, stops the build until it's checked.
+export const QUESTIEDB_CONTRACT = 4;
+
+export function checkContract(dump: Dump): void {
+  if (dump.meta.contractVersion !== QUESTIEDB_CONTRACT) {
+    throw new Error(
+      `QuestieDB's data contract is version ${dump.meta.contractVersion}, but pipeline/transform.ts reads version ` +
+        `${QUESTIEDB_CONTRACT}. Check what changed, update transform, then QUESTIEDB_CONTRACT.`,
+    );
+  }
+}
+
 // The masks in src/data/masks.ts must be QuestieDB's.
 export function checkMasks(dump: Dump): void {
   for (const race of RACES) {

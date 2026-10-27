@@ -50,12 +50,14 @@ export function QuestPanel({ guide, index, profile }: { guide: Guide; index: Que
   const chapter = guide.chapters.find((c) => c.id === position.chapterId);
   const level = state.levelTo ?? state.levelFrom;
 
-  const options = { ...DEFAULT_AVAILABLE_OPTIONS, locked: showLocked, anyLevel: allLevels };
+  const options = useMemo(
+    () => ({ ...DEFAULT_AVAILABLE_OPTIONS, locked: showLocked, anyLevel: allLevels }),
+    [showLocked, allLevels],
+  );
   const levels = levelWindow(state, options);
   const unfiltered = useMemo(
     () => availableQuests(guide, index, profile, state, options),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [guide, index, profile, state, showLocked, allLevels],
+    [guide, index, profile, state, options],
   );
   const available = zone === undefined ? unfiltered : unfiltered.filter((a) => questRegion(index, a.quest) === zone);
 

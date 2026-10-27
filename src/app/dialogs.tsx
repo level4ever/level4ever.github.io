@@ -56,13 +56,7 @@ export function ProfileDialog({
   const [faction, setFaction] = useState<Faction>(guide.faction);
   const [draft, setDraft] = useState(profile);
   const save = () => {
-    const app = useApp.getState();
-    if (faction !== guide.faction) {
-      app.edit((g) => {
-        g.faction = faction;
-      });
-    }
-    app.setProfile(draft);
+    useApp.getState().setProfile(draft, faction);
     onClose();
   };
   return (

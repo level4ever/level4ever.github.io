@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { describe, expect, test } from "vitest";
 import { FACTION_RACE_MASKS } from "../src/data/masks";
-import { transform, type Dump } from "./transform";
+import { QUESTIEDB_CONTRACT, checkContract, transform, type Dump } from "./transform";
 
 const ORC = 2;
 const HUMAN = 1;
@@ -129,5 +129,20 @@ describe("transform", () => {
     // 367 has no name of its own, so its quests show their zone's.
     expect(data.areas).toEqual({ 14: "Durotar", 1637: "Orgrimmar", 363: "Valley of Trials", 367: "Durotar" });
     expect(data.maps).toEqual({ 1411: "Durotar", 1454: "Orgrimmar" });
+  });
+});
+
+describe("QuestieDB's data contract", () => {
+  test("the version transform reads is accepted", () => {
+    expect(dump().meta.contractVersion).toBe(QUESTIEDB_CONTRACT);
+    expect(() => checkContract(dump())).not.toThrow();
+  });
+
+  test("any other version stops the build, newer or older", () => {
+    for (const version of [QUESTIEDB_CONTRACT + 1, QUESTIEDB_CONTRACT - 1]) {
+      const other = dump();
+      other.meta.contractVersion = version;
+      expect(() => checkContract(other)).toThrow(`QuestieDB's data contract is version ${version}`);
+    }
   });
 });

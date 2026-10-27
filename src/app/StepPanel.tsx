@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import type { Warning } from "../lib/analysis";
-import { deleteItem, getItem, setBatchedWithPrevious, setQuestValue, toggleObjective, updateItem } from "../lib/editor";
+import { cleanNoteText, deleteItem, getItem, setBatchedWithPrevious, setQuestValue, toggleObjective, updateItem } from "../lib/editor";
 import type { Coords, Guide, NoteItem, NoteKind, QuestItem } from "../lib/guide";
 import { CLASSES, giverPlaces, nearestCoords, objectiveText, turnInPlaces, type QuestIndex } from "../lib/questData";
 import { QuestDetails } from "./QuestCard";
@@ -194,8 +194,7 @@ function NoteStep({ index, item }: { index: QuestIndex; item: NoteItem }) {
         <input
           className="input"
           value={item.text ?? ""}
-          maxLength={255}
-          onChange={(e) => update({ text: e.target.value || undefined }, "text")}
+          onChange={(e) => update({ text: cleanNoteText(e.target.value) }, "text")}
         />
       </label>
       {kind === "loot" && (
